@@ -91,6 +91,35 @@ def draw_stats_card(data, theme_name="Default", show_options=None, custom_colors
         # Ghost eyes
         dwg.add(dwg.circle(center=(ghost_x + 5, ghost_y + 8), r=2, fill="#ffffff"))
         dwg.add(dwg.circle(center=(ghost_x + 10, ghost_y + 8), r=2, fill="#ffffff"))
+    elif theme_name == "Cyberpunk":
+        # Grid overlay
+        for i in range(0, width, 30):
+            dwg.add(dwg.line(start=(i, 0), end=(i, height), 
+                           stroke="#1a1a2e", stroke_width=0.3, opacity=0.4))
+        for i in range(0, height, 30):
+            dwg.add(dwg.line(start=(0, i), end=(width, i), 
+                           stroke="#1a1a2e", stroke_width=0.3, opacity=0.4))
+        
+        # Scan line effect
+        scan_y = height / 2
+        dwg.add(dwg.line(start=(0, scan_y), end=(width, scan_y), 
+                        stroke="#00ff41", stroke_width=2, opacity=0.15))
+        
+        # Glitch rectangles
+        random.seed(456)
+        for _ in range(4):
+            gx = random.randint(0, width - 40)
+            gy = random.randint(0, height - 10)
+            gw = random.randint(15, 40)
+            dwg.add(dwg.rect(insert=(gx, gy), size=(gw, 2), 
+                           fill="#ff00ff", opacity=0.25))
+        
+        # Corner brackets (HUD style)
+        bracket_size = 15
+        dwg.add(dwg.path(d=f"M 10 10 L 10 {10+bracket_size} M 10 10 L {10+bracket_size} 10", 
+                        stroke="#00ffff", stroke_width=2, fill="none", opacity=0.5))
+        dwg.add(dwg.path(d=f"M {width-10} 10 L {width-10} {10+bracket_size} M {width-10} 10 L {width-10-bracket_size} 10", 
+                        stroke="#00ffff", stroke_width=2, fill="none", opacity=0.5))
 
     # Title
     font_family = theme["font_family"]

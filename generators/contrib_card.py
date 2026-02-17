@@ -194,6 +194,40 @@ def draw_contrib_card(data, theme_name="Default", custom_colors=None):
                               fill="#ffff00")
         dwg.add(pacman_path)
         
+    elif theme_name == "Cyberpunk":
+        # Neon grid
+        for i in range(0, width, 20):
+            dwg.add(dwg.line(start=(i, 0), end=(i, height), stroke="#1a1a2e", stroke_width=0.3, opacity=0.5))
+        for i in range(0, height, 20):
+            dwg.add(dwg.line(start=(0, i), end=(width, i), stroke="#1a1a2e", stroke_width=0.3, opacity=0.5))
+        
+        # Neon blocks
+        box_size = 9
+        gap = 2
+        start_x = 20
+        start_y = 55
+        
+        for col in range(35):
+            for row in range(6):
+                x = start_x + col * (box_size + gap)
+                y = start_y + row * (box_size + gap)
+                
+                level = random.choice([0, 1, 2, 3, 4])
+                if level == 0:
+                    dwg.add(dwg.rect(insert=(x, y), size=(box_size, box_size), fill="#1a1a2e", rx=1, opacity=0.5))
+                else:
+                    colors = ["#00ffff", "#00ff41", "#ff00ff", "#ff0080"]
+                    neon_color = colors[min(level-1, 3)]
+                    
+                    dwg.add(dwg.rect(insert=(x, y), size=(box_size, box_size), fill=neon_color, rx=1, opacity=0.7))
+                    
+                    if level >= 3:  # Glow effect
+                        dwg.add(dwg.rect(insert=(x-1, y-1), size=(box_size+2, box_size+2), 
+                                       fill="none", stroke=neon_color, stroke_width=1, rx=2, opacity=0.3))
+        
+        # Scan line
+        scan_y = 90
+        dwg.add(dwg.line(start=(0, scan_y), end=(width, scan_y), stroke="#00ff41", stroke_width=1.5, opacity=0.2))
 
     else:
         # Default Grid (Github Style)
