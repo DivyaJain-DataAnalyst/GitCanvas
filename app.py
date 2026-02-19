@@ -1,9 +1,10 @@
 import streamlit as st  # type: ignore
 import base64
 import os
+import streamlit.components.v1 as components
 from dotenv import load_dotenv
 from roast_widget_streamlit import render_roast_widget
-from generators import stats_card, lang_card, contrib_card, badge_generator, recent_activity_card, social_card, streak_card, repo_card
+from generators import stats_card, lang_card, contrib_card, badge_generator, recent_activity_card, streak_card
 from utils import github_api
 from themes.styles import THEMES, get_all_themes, CUSTOM_THEMES
 from generators.visual_elements import (
@@ -17,7 +18,7 @@ if "canvas" not in st.session_state:
     st.session_state["canvas"] = []
 
 for item in st.session_state["canvas"]:
-    st.markdown(item, unsafe_allow_html=True)
+    components.html(item, height=150)
 
 # Load environment variables
 load_dotenv()
@@ -158,7 +159,7 @@ if custom_colors:
 
 
 # --- Layout: Tabs ---
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(["Main Stats", "Languages", "Contributions", "Streak", "Top Repos", "Icons & Badges", "Social Links", "🔥 AI Roast"])
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8 = st.tabs(["Main Stats", "Languages", "Contributions", "🔥 GitHub Streak", "Icons & Badges", "🔥 AI Roast", "Recent Activity", "✨ Visual Elements"])
 
 def show_code_area(code_content, label="Markdown Code"):
     st.markdown(f"**{label}** (Copy below)")
@@ -285,31 +286,6 @@ with tab4:
     render_tab(svg_bytes, "streak", username, selected_theme, custom_colors, code_template="![GitHub Streak]({url})")
 
 with tab5:
-    st.subheader("Top Repositories")
-    st.caption("⭐ Showcase your best work! Display your most popular repositories.")
-    
-    # Controls
-    col_sort, col_limit = st.columns(2)
-    with col_sort:
-        sort_by = st.selectbox("Sort by", ["stars", "forks", "updated"], index=0, 
-                               format_func=lambda x: {"stars": "⭐ Stars", "forks": "🍴 Forks", "updated": "🕐 Recently Updated"}[x])
-    with col_limit:
-        limit = st.selectbox("Number of repos", [3, 5, 10], index=1)
-    
-    # Fetch top repos data
-    from utils.github_api import get_top_repositories
-    top_repos = get_top_repositories(username, sort_by=sort_by, limit=limit)
-    
-    # Update data dict with repos
-    repo_data = data.copy()
-    repo_data["top_repos"] = top_repos
-    
-    # Render card
-    svg_bytes = repo_card.draw_repo_card(repo_data, selected_theme, custom_colors, sort_by=sort_by, limit=limit)
-    render_tab(svg_bytes, "repos", username, selected_theme, custom_colors, 
-               code_template=f"[![Top Repos]({{url}})](https://github.com/{username})")
-
-with tab6:
     st.subheader("Tech Stack Badges")
     st.markdown("Click detailed settings to customize. Copy the code block to your README.")
     
@@ -359,72 +335,70 @@ with tab6:
             st.markdown("---")
             show_code_area(md_output, label="Badge Code")
 
-with tab7:
-    st.subheader("Social Links")
-    st.markdown("Add your social media links and contact information.")
-    
-    # Social media inputs
-    col1, col2 = st.columns(2)
-    with col1:
-        twitter_url = st.text_input("Twitter URL", placeholder="https://twitter.com/username", key="twitter")
-        linkedin_url = st.text_input("LinkedIn URL", placeholder="https://linkedin.com/in/username", key="linkedin")
-        website_url = st.text_input("Website URL", placeholder="https://example.com", key="website")
-    with col2:
-        email_url = st.text_input("Email", placeholder="email@example.com", key="email")
-        youtube_url = st.text_input("YouTube URL", placeholder="https://youtube.com/channel/...", key="youtube")
-    
-    # Platform selection
-    st.markdown("**Select which links to display:**")
-    col_select1, col_select2, col_select3 = st.columns(3)
-    with col_select1:
-        show_twitter = st.checkbox("Twitter", value=True, key="show_twitter")
-        show_linkedin = st.checkbox("LinkedIn", value=True, key="show_linkedin")
-    with col_select2:
-        show_website = st.checkbox("Website", value=True, key="show_website")
-        show_email = st.checkbox("Email", value=True, key="show_email")
-    with col_select3:
-        show_youtube = st.checkbox("YouTube", value=True, key="show_youtube")
-    
-    # Custom icon color
-    use_custom_icon_color = st.checkbox("Use custom icon color", value=False, key="use_custom_icon_color")
-    custom_icon_color = None
-    if use_custom_icon_color:
-        custom_icon_color = st.color_picker("Icon Color", value=current_theme_opts.get('title_color', '#58a6ff'), key="custom_icon_color")
-    
-    # Build social data dict
-    social_data = {
-        "twitter": twitter_url if show_twitter else "",
-        "linkedin": linkedin_url if show_linkedin else "",
-        "website": website_url if show_website else "",
-        "email": f"mailto:{email_url}" if show_email and email_url else "",
-        "youtube": youtube_url if show_youtube else ""
-    }
-    
-    # Build selected platforms list
-    selected_platforms = []
-    if show_twitter and twitter_url: selected_platforms.append("twitter")
-    if show_linkedin and linkedin_url: selected_platforms.append("linkedin")
-    if show_website and website_url: selected_platforms.append("website")
-    if show_email and email_url: selected_platforms.append("email")
-    if show_youtube and youtube_url: selected_platforms.append("youtube")
-    
-    # Generate social card
-    svg_bytes = social_card.draw_social_card(
-        social_data, 
-        selected_theme, 
-        custom_colors, 
-        selected_platforms=selected_platforms,
-        icon_color=custom_icon_color
-    )
-    
-    # Render using the standard tab rendering
-    render_tab(svg_bytes, "social", username, selected_theme, custom_colors, code_template="![Social Links]({url})")
-
-with tab8:
+# NEW TAB 6: AI ROAST
+with tab6:
     st.subheader("🔥 AI Profile Roast")
+
     st.markdown("Let AI roast your GitHub profile with humor!")
     
     if username:
         render_roast_widget(username)
     else:
         st.warning("Please enter a GitHub username in the sidebar.")
+
+with tab7:
+    st.subheader("Recent Activity")
+    st.markdown("Shows your last 3 PR or Issue events from GitHub.")
+
+    col1, col2 = st.columns([1.5, 1])
+    with col1:
+        st.caption("Theme: **{}**".format(selected_theme))
+        try:
+            # Pass selected_theme string
+            svg_bytes = recent_activity_card.draw_recent_activity_card({'username': username}, selected_theme, custom_colors, token=github_token)
+        except Exception as e:
+            st.error(f"Error rendering recent activity: {e}")
+            svg_bytes = recent_activity_card._render_svg_lines([f"Error: {e}"], THEMES.get(selected_theme, THEMES['Default']))
+
+        b64 = base64.b64encode(svg_bytes.encode('utf-8')).decode("utf-8")
+        st.markdown(f'<img src="data:image/svg+xml;base64,{b64}" style="max-width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border-radius: 10px;"/>', unsafe_allow_html=True)
+
+    with col2:
+        st.subheader("Integration")
+        params = []
+        if selected_theme != "Default": params.append(f"theme={selected_theme}")
+        for k, v in custom_colors.items():
+            params.append(f"{k}={v.replace('#', '')}")
+        if github_token:
+            params.append(f"token={github_token}")
+
+        query_str = "&".join(params)
+        if query_str: query_str = "?" + query_str
+
+        url = f"https://gitcanvas-api.vercel.app/api/recent{query_str}&username={username}"
+        code = f"![Recent Activity]({url})"
+        show_code_area(code)
+
+with tab8:
+    st.subheader("✨ Visual Elements")
+    st.markdown("Add emojis, GIFs, or stickers to your canvas")
+
+    element_type = st.selectbox(
+        "Choose element type",
+        ["Emoji", "GIF", "Sticker"]
+    )
+
+    value = st.text_input(
+        "Enter value",
+        placeholder="🔥 or https://gif-url"
+    )
+
+    if st.button("Add to Canvas"):
+        if element_type == "Emoji":
+            svg = emoji_element(value)
+        elif element_type == "GIF":
+            svg = gif_element(value)
+        else:
+            svg = sticker_element(value)
+
+        st.session_state["canvas"].append(svg)
