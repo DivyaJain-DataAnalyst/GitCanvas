@@ -119,9 +119,17 @@ def get_live_github_data(username, token=None):
         user_data = user_resp.json()
         
         # Repos for stars count (limited to first 100 public repos for basic sum without pagination for MVP speed)
-        repos_url = f"https://api.github.com/users/{username}/repos?per_page=100&type=owner"
+        repos_url = f"https://api.github.com/users/{username}/repos?per_page=100&sort=updated"
         repos_resp = requests.get(repos_url, headers=headers)
         repos_data = repos_resp.json() if repos_resp.status_code == 200 else []
+        
+        # Filter out forks if user wants only their own repos (but keep all by default)
+        if isinstance(repos_data, list):
+            repos_data = [repo for repo in repos_data if not repo.get("fork", False)]
+        else:
+            # API returned an error dict instead of list
+            print(f"Repos API Error: {repos_data}")
+            repos_data = []
         
         total_stars = sum(repo.get("stargazers_count", 0) for repo in repos_data)
         
@@ -143,6 +151,8 @@ def get_live_github_data(username, token=None):
             "forks": repo.get("forks_count", 0),
             "updated_at": repo.get("updated_at", "")
         } for repo in sorted(repos_data, key=lambda x: x.get("stargazers_count", 0), reverse=True)[:10]]
+        
+        print(f"Fetched {len(repos_data)} repos for {username}, top_repos count: {len(top_repos)}")
 
         # Ensure total_commits is always an integer
         total_commits = 0 

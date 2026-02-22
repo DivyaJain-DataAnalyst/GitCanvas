@@ -92,11 +92,13 @@ with st.sidebar:
     
     if st.button("Refresh Data", use_container_width=True):
         st.cache_data.clear()
+        st.success("Cache cleared! Data will be refreshed on next interaction.")
+        st.rerun()
         
     st.info("💡 Tip: Use the 'Badges' tab to add your tech stack icons!")
 
 # Data Loading
-@st.cache_data
+@st.cache_data(ttl=3600)  # Cache for 1 hour
 def load_data(user, token=None):
     d = github_api.get_live_github_data(user, token)
     if not d:
@@ -105,6 +107,10 @@ def load_data(user, token=None):
     return d
 
 data = load_data(username if username else "torvalds", github_token if github_token else None)
+
+# Ensure backward compatibility with old cached data
+if "top_repos" not in data:
+    data["top_repos"] = []
 
 # Apply custom colors to current theme for python logic
 current_theme_opts = THEMES.get(selected_theme, THEMES["Default"]).copy()
