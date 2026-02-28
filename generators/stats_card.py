@@ -181,7 +181,58 @@ def draw_stats_card(data, theme_name="Default", show_options=None, custom_colors
                         stroke="#00ffff", stroke_width=2, fill="none", opacity=0.5))
         dwg.add(dwg.path(d=f"M {width-10} 10 L {width-10} {10+bracket_size} M {width-10} 10 L {width-10-bracket_size} 10", 
                         stroke="#00ffff", stroke_width=2, fill="none", opacity=0.5))
-
+    elif theme_name == "Cricket":
+        # Stadium lights
+        for i in range(2):
+            light_x = 60 + i * (width - 120)
+            light_y = 25
+            # Light glow
+            dwg.add(dwg.circle(center=(light_x, light_y), r=5, fill="#ffeb3b", opacity=0.7))
+            dwg.add(dwg.circle(center=(light_x, light_y), r=8, fill="#ffeb3b", opacity=0.3))
+        
+        # Cricket bat
+        bat_x = width - 60
+        bat_y = height - 40
+        # Handle
+        dwg.add(dwg.rect(insert=(bat_x, bat_y - 20), size=(4, 20), fill="#8b4513", rx=1))
+        # Blade
+        dwg.add(dwg.rect(insert=(bat_x - 6, bat_y), size=(16, 30), fill="#d2691e", rx=2))
+        # Grip lines
+        for i in range(3):
+            grip_y = bat_y - 17 + i * 5
+            dwg.add(dwg.line(start=(bat_x, grip_y), end=(bat_x + 4, grip_y), 
+                           stroke="#000000", stroke_width=0.8))
+        
+        # Cricket ball (red)
+        ball_x = bat_x + 30
+        ball_y = bat_y + 10
+        dwg.add(dwg.circle(center=(ball_x, ball_y), r=6, fill="#cc0000"))
+        # Seam
+        dwg.add(dwg.path(
+            d=f"M {ball_x - 2} {ball_x - 6} Q {ball_x} {ball_y - 4} {ball_x + 2} {ball_y - 6}",
+            fill="none", stroke="#ffffff", stroke_width=1
+        ))
+        
+        # Mini wickets
+        wicket_x = 25
+        wicket_y = height - 35
+        for i in range(3):
+            stump_x = wicket_x + i * 3
+            dwg.add(dwg.rect(insert=(stump_x, wicket_y), size=(2, 20), fill="#f5deb3"))
+        # Bails
+        dwg.add(dwg.rect(insert=(wicket_x - 1, wicket_y - 2), size=(9, 2), fill="#8b4513", rx=1))
+        
+        # Boundary rope decoration
+        rope_y = height - 15
+        for i in range(10):
+            rope_x = 30 + i * 40
+            if rope_x < width - 100:
+                dwg.add(dwg.circle(center=(rope_x, rope_y), r=2, fill="#ffffff", opacity=0.5))
+        
+        # Score number display
+        dwg.add(dwg.text("6", insert=(width - 25, 30), font_size="20px", 
+                        fill="#ffd700", font_weight="bold", opacity=0.6))
+    
     # Title
     font_family = theme["font_family"]
     title_params = {
