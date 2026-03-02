@@ -1,4 +1,4 @@
-﻿import math
+import math
 import svgwrite
 import random
 from themes.styles import THEMES
@@ -773,31 +773,52 @@ def draw_contrib_card(data, theme_name="Default", custom_colors=None, date_range
         dwg.add(dwg.text("GEOM-LIQUID INTERFACE", insert=(width/2, margin + 55), fill=text_col, font_size=8,
                          font_family="'Inter', sans-serif", letter_spacing=4, text_anchor="middle", opacity=0.6))
 
-        # --- 6. Contributions Grid (Bubbles) ---
-        contributions_subset = contributions[-119:]  # Fit ~17 weeks
-        grid_cols = 17 
+        # --- 6. Contributions Grid (Bubbles) - kept inside surrounding box ---
+        contributions_subset = contributions[-119:]  # Fit 17 cols x 7 rows
+        grid_cols = 17
         grid_rows = 7
         
-        start_x = (width - grid_cols * 22) / 2 + 10
-        start_y = margin + 80
+        # Panel content area: below subtitle to above panel bottom (with padding)
+        grid_area_top = margin + 60
+        grid_area_bottom = height - margin - 12
+        grid_area_height = grid_area_bottom - grid_area_top
+        # Size grid so 7 rows fit inside panel; circles stay in surrounding box
+        step_y = grid_area_height / grid_rows
+        step_x = (panel_width - 30) / (grid_cols - 1)  # 15px margin each side
+        step_x = min(step_x, 26)
+        cell_size = min(step_x, step_y) * 0.8
+        radius = max(2, min(cell_size / 2, 5))
+        # Center grid in panel
+        grid_total_width = (grid_cols - 1) * step_x
+        grid_total_height = (grid_rows - 1) * step_y
+        start_x = margin + (panel_width - grid_total_width) / 2
+        start_y = grid_area_top + (grid_area_height - grid_total_height) / 2
+        
+        # Clip path so contribution circles stay inside the glass panel
+        clip_id = "glassPanelClip"
+        clip = dwg.defs.add(dwg.clipPath(id=clip_id))
+        clip.add(dwg.rect(insert=(margin, margin), size=(panel_width, panel_height), rx=16, ry=16))
+        grid_group = dwg.g(clip_path=f"url(#{clip_id})")
         
         for i, day in enumerate(contributions_subset):
             col = i // grid_rows
             row = i % grid_rows
             
-            cx = start_x + col * 22
-            cy = start_y + row * 22
+            cx = start_x + col * step_x
+            cy = start_y + row * step_y
             
             count = day.get("count", 0)
             
-            r = 6
+            r = radius
             if count > 0:
                 intensity = min(count / 10, 1)
                 # Bubble with gradient-like look (inner white circle for highlight)
-                dwg.add(dwg.circle(center=(cx, cy), r=r, fill=title_col, opacity=0.4 + intensity * 0.5))
-                dwg.add(dwg.circle(center=(cx - r * 0.3, cy - r * 0.4), r=r * 0.4, fill="#ffffff", opacity=0.5))
+                grid_group.add(dwg.circle(center=(cx, cy), r=r, fill=title_col, opacity=0.4 + intensity * 0.5))
+                grid_group.add(dwg.circle(center=(cx - r * 0.3, cy - r * 0.4), r=r * 0.4, fill="#ffffff", opacity=0.5))
             else:
-                dwg.add(dwg.circle(center=(cx, cy), r=r, fill="#ffffff", opacity=0.1))
+                grid_group.add(dwg.circle(center=(cx, cy), r=r, fill="#ffffff", opacity=0.1))
+        
+        dwg.add(grid_group)
     elif original_theme_name == "Neural":
         cx = width / 2
         cy = height / 2 + 10
