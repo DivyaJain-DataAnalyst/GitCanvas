@@ -48,6 +48,7 @@ async def get_stats(
     hide_commits: bool = False,
     hide_repos: bool = False,
     hide_followers: bool = False,
+    animations_enabled: bool = True,
     bg_color: Optional[str] = None,
     title_color: Optional[str] = None,
     text_color: Optional[str] = None,
@@ -63,7 +64,7 @@ async def get_stats(
     }
     
     custom_colors = parse_colors(bg_color, title_color, text_color, border_color)
-    svg_content = stats_card.draw_stats_card(data, theme, show_options=show_options, custom_colors=custom_colors)
+    svg_content = stats_card.draw_stats_card(data, theme, show_options=show_options, custom_colors=custom_colors, animations_enabled=animations_enabled)
     return svg_response(svg_content , request)
 
 
@@ -73,6 +74,7 @@ async def get_languages(
     username: str,
     theme: str = "Default",
     exclude: Optional[str] = None,
+    excluded_languages: Optional[str] = None,
     bg_color: Optional[str] = None,
     title_color: Optional[str] = None,
     text_color: Optional[str] = None,
@@ -82,11 +84,13 @@ async def get_languages(
     custom_colors = parse_colors(bg_color, title_color, text_color, border_color)
     
     # Parse exclude parameter into list of languages
-    excluded_languages = []
-    if exclude:
-        excluded_languages = [lang.strip() for lang in exclude.split(',') if lang.strip()]
+    excluded_languages_list = []
+    # Support both 'exclude' and 'excluded_languages' parameters
+    param_value = exclude or excluded_languages
+    if param_value:
+        excluded_languages_list = [lang.strip() for lang in param_value.split(',') if lang.strip()]
     
-    svg_content = lang_card.draw_lang_card(data, theme, custom_colors=custom_colors, excluded_languages=excluded_languages)
+    svg_content = lang_card.draw_lang_card(data, theme, custom_colors=custom_colors, excluded_languages=excluded_languages_list)
     return svg_response(svg_content , request)
 
 
@@ -95,6 +99,8 @@ async def get_contributions(
     request: Request,
     username: str,
     theme: str = "Default",
+    animations_enabled: bool = True,
+    date_range: Optional[str] = None,
     bg_color: Optional[str] = None,
     title_color: Optional[str] = None,
     text_color: Optional[str] = None,
@@ -102,7 +108,22 @@ async def get_contributions(
 ):
     data = github_api.get_live_github_data(username) or github_api.get_mock_data(username)
     custom_colors = parse_colors(bg_color, title_color, text_color, border_color)
-    svg_content = contrib_card.draw_contrib_card(data, theme, custom_colors=custom_colors)
+    
+    # Parse date_range parameter into dict if provided
+    date_range_dict = None
+    if date_range:
+        # Expected format: "start_date,end_date" (YYYY-MM-DD,YYYY-MM-DD)
+        try:
+            parts = date_range.split(',')
+            if len(parts) == 2:
+                date_range_dict = {
+                    "start": parts[0].strip(),
+                    "end": parts[1].strip()
+                }
+        except Exception:
+            pass
+    
+    svg_content = contrib_card.draw_contrib_card(data, theme, custom_colors=custom_colors, date_range=date_range_dict, animations_enabled=animations_enabled)
     return svg_response(svg_content , request)
 
 
