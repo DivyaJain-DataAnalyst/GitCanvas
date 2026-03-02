@@ -180,7 +180,7 @@ def show_code_area(code_content, label="Markdown Code"):
     st.markdown(f"**{label}** (Copy below)")
     st.text_area(label, value=code_content, height=100, label_visibility="collapsed")
 
-def render_tab(svg_bytes, endpoint, username, selected_theme, custom_colors, hide_params=None, code_template=None, excluded_languages=None):
+def render_tab(svg_bytes, endpoint, username, selected_theme, custom_colors, hide_params=None, code_template=None, excluded_languages=None, output_format="Markdown"):
     col1, col2 = st.columns([1.5, 1])
     with col1:
         # Render SVG
@@ -236,12 +236,30 @@ def render_tab(svg_bytes, endpoint, username, selected_theme, custom_colors, hid
             query_str = "?" + query_str
 
         url = f"https://gitcanvas-api.vercel.app/api/{endpoint}{query_str}&username={username}"
-        if code_template:
-            code = code_template.format(url=url, username=username)
+        
+        # Generate code based on output format
+        if output_format == "HTML":
+            # Generate HTML format
+            if code_template and "[" in code_template:
+                # Handle templates that have link wrapping (like stats card)
+                # Extract alt text from markdown template
+                import re
+                alt_match = re.search(r'!\[([^\]]+)\]', code_template)
+                alt_text = alt_match.group(1) if alt_match else endpoint.title()
+                code = f'<a href="https://github.com/{username}"><img src="{url}" alt="{alt_text}"/></a>'
+            else:
+                # Simple image tag
+                code = f'<img src="{url}" alt="{endpoint.title()}"/>'
         else:
-            code = f"![{endpoint.title()}]({url})"
+            # Generate Markdown format (default)
+            if code_template:
+                code = code_template.format(url=url, username=username)
+            else:
+                code = f"![{endpoint.title()}]({url})"
 
-        show_code_area(code)
+        # Update label based on format
+        code_label = "HTML Code" if output_format == "HTML" else "Markdown Code"
+        show_code_area(code, label=code_label)
 
 with tab1:
     st.subheader("Stats Card")
@@ -256,7 +274,7 @@ with tab1:
 
     # Pass selected_theme string to support theme-specific logic (e.g. Glass)
     svg_bytes = stats_card.draw_stats_card(data, selected_theme, show_ops, custom_colors, animations_enabled)
-    render_tab(svg_bytes, "stats", username, selected_theme, custom_colors, hide_params=show_ops, code_template=f"[![{username}'s Stats]({{url}})](https://github.com/{{username}})")
+    render_tab(svg_bytes, "stats", username, selected_theme, custom_colors, hide_params=show_ops, code_template=f"[![{username}'s Stats]({{url}})](https://github.com/{{username}})", output_format=output_format)
 
 with tab2:
     st.subheader("Top Languages")
@@ -278,7 +296,7 @@ with tab2:
     
     # Generate card with exclusions - Pass selected_theme string
     svg_bytes = lang_card.draw_lang_card(data, selected_theme, custom_colors, excluded_languages=excluded_languages)
-    render_tab(svg_bytes, "languages", username, selected_theme, custom_colors, code_template="![Top Langs]({url})", excluded_languages=excluded_languages_str)
+    render_tab(svg_bytes, "languages", username, selected_theme, custom_colors, code_template="![Top Langs]({url})", excluded_languages=excluded_languages_str, output_format=output_format)
 
 with tab3:
     st.subheader("Top Repositories")
@@ -300,7 +318,7 @@ with tab3:
     
     # Generate card - Pass selected_theme string
     svg_bytes = repo_card.draw_repo_card(filtered_data, selected_theme, custom_colors, sort_by=sort_by, limit=repo_limit)
-    render_tab(svg_bytes, "repos", username, selected_theme, custom_colors, code_template="![Top Repos]({url})")
+    render_tab(svg_bytes, "repos", username, selected_theme, custom_colors, code_template="![Top Repos]({url})", output_format=output_format)
 
 with tab4:
     st.subheader("Contribution Graph")
@@ -349,14 +367,14 @@ with tab4:
 
     # Pass selected_theme string and date_range
     svg_bytes = contrib_card.draw_contrib_card(data, selected_theme, custom_colors, date_range=date_range, animations_enabled=animations_enabled)
-    render_tab(svg_bytes, "contributions", username, selected_theme, custom_colors, code_template="![Contributions]({url})")
+    render_tab(svg_bytes, "contributions", username, selected_theme, custom_colors, code_template="![Contributions]({url})", output_format=output_format)
 
 with tab5:
     st.subheader("GitHub Streak")
     st.caption("🔥 Track your contribution streaks! Shows current consecutive days and your all-time longest streak.")
     
     svg_bytes = streak_card.draw_streak_card(data, selected_theme, custom_colors)
-    render_tab(svg_bytes, "streak", username, selected_theme, custom_colors, code_template="![GitHub Streak]({url})")
+    render_tab(svg_bytes, "streak", username, selected_theme, custom_colors, code_template="![GitHub Streak]({url})", output_format=output_format)
 
 with tab6:
     st.subheader("🔗 Social Links")
@@ -513,8 +531,15 @@ with tab9:
         if query_str: query_str = "?" + query_str
 
         url = f"https://gitcanvas-api.vercel.app/api/recent{query_str}&username={username}"
-        code = f"![Recent Activity]({url})"
-        show_code_area(code)
+        
+        # Generate code based on output format
+        if output_format == "HTML":
+            code = f'<a href="https://github.com/{username}"><img src="{url}" alt="Recent Activity"/></a>'
+        else:
+            code = f"![Recent Activity]({url})"
+        
+        code_label = "HTML Code" if output_format == "HTML" else "Markdown Code"
+        show_code_area(code, label=code_label)
 
 with tab10:
     st.subheader("✨ Visual Elements")
@@ -553,4 +578,4 @@ with tab11:
         trophy_data["created_at"] = "2010-01-01T00:00:00Z"
     
     svg_bytes = trophy_card.draw_trophy_card(trophy_data, selected_theme, custom_colors)
-    render_tab(svg_bytes, "trophy", username, selected_theme, custom_colors, code_template="![GitHub Trophy]({url})")
+    render_tab(svg_bytes, "trophy", username, selected_theme, custom_colors, code_template="![GitHub Trophy]({url})", output_format=output_format)
