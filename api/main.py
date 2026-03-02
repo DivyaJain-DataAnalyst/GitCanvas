@@ -52,7 +52,8 @@ async def get_stats(
     bg_color: Optional[str] = None,
     title_color: Optional[str] = None,
     text_color: Optional[str] = None,
-    border_color: Optional[str] = None
+    border_color: Optional[str] = None,
+    animations_enabled: bool = True
 ):
     data = github_api.get_live_github_data(username) or github_api.get_mock_data(username)
     
@@ -104,26 +105,23 @@ async def get_contributions(
     bg_color: Optional[str] = None,
     title_color: Optional[str] = None,
     text_color: Optional[str] = None,
-    border_color: Optional[str] = None
+    border_color: Optional[str] = None,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    animations_enabled: bool = True
 ):
     data = github_api.get_live_github_data(username) or github_api.get_mock_data(username)
     custom_colors = parse_colors(bg_color, title_color, text_color, border_color)
     
-    # Parse date_range parameter into dict if provided
-    date_range_dict = None
-    if date_range:
-        # Expected format: "start_date,end_date" (YYYY-MM-DD,YYYY-MM-DD)
-        try:
-            parts = date_range.split(',')
-            if len(parts) == 2:
-                date_range_dict = {
-                    "start": parts[0].strip(),
-                    "end": parts[1].strip()
-                }
-        except Exception:
-            pass
+    # Build date_range dict if dates are provided
+    date_range = None
+    if start_date and end_date:
+        date_range = {
+            'start': start_date,
+            'end': end_date
+        }
     
-    svg_content = contrib_card.draw_contrib_card(data, theme, custom_colors=custom_colors, date_range=date_range_dict, animations_enabled=animations_enabled)
+    svg_content = contrib_card.draw_contrib_card(data, theme, custom_colors=custom_colors, date_range=date_range, animations_enabled=animations_enabled)
     return svg_response(svg_content , request)
 
 

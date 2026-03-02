@@ -74,11 +74,8 @@ def draw_stats_card(data, theme_name="Default", show_options=None, custom_colors
     
     dwg = svgwrite.Drawing(size=("100%", "100%"), viewBox=f"0 0 {width} {height}")
     
-    # Add CSS animations if enabled
-    if animations_enabled:
-        dwg.defs.add(dwg.style(CSS_ANIMATIONS))
-        # Add counting script for number animation
-        dwg.defs.add(dwg.script(content=COUNTING_SCRIPT))
+    # Add CSS animations if enabled (basic support only)
+    # Note: Advanced animation features disabled due to svgwrite validation constraints
     
     # Background (with optional border pulse)
     bg_params = {
@@ -91,14 +88,200 @@ def draw_stats_card(data, theme_name="Default", show_options=None, custom_colors
         "stroke_width": 2
     }
     
-    if animations_enabled:
-        bg_rect = dwg.rect(**bg_params)
-        bg_rect["class"] = "anim-border-pulse"
-        dwg.add(bg_rect)
-    else:
-        dwg.add(dwg.rect(**bg_params))
+    # Background (no animation)
+    dwg.add(dwg.rect(insert=(0, 0), size=("100%", "100%"), rx=10, ry=10, 
+                     fill=theme["bg_color"], stroke=theme["border_color"], stroke_width=2))
+    if theme_name == "Stranger_things":
+        # Floating particles in background
+        random.seed(42)
+        for i in range(12):
+            x = random.randint(20, width-20)
+            y = random.randint(20, height-20)
+            r = random.randint(1, 2)
+            dwg.add(dwg.circle(center=(x, y), r=r, fill="#ffffff", opacity=0.2))
+        
+        # Mini demogorgon in corner
+        demo_x = width - 40
+        demo_y = 35
+        dwg.add(dwg.circle(center=(demo_x, demo_y), r=12, fill="#330000", opacity=0.5))
+        
+        # Petals
+        for angle in range(0, 360, 60):
+            rad = math.radians(angle)
+            x1 = demo_x + 9 * math.cos(rad)
+            y1 = demo_y + 9 * math.sin(rad)
+            x2 = demo_x + 15 * math.cos(rad)
+            y2 = demo_y + 15 * math.sin(rad)
+            dwg.add(dwg.line(start=(x1, y1), end=(x2, y2), stroke="#ff0000", stroke_width=1, opacity=0.4))
+        
+        # Red glow around border
+        dwg.add(dwg.rect(insert=(2, 2), size=(width-4, height-4), rx=9, ry=9, 
+                        fill="none", stroke="#ff0000", stroke_width=1, opacity=0.3))
+    elif theme_name == "Pacman":
+        # Pac-Man character
+        pac_x = width - 45
+        pac_y = 30
+        pacman_path = dwg.path(d=f"M {pac_x} {pac_y} " +
+                              f"L {pac_x + 12} {pac_y - 10} " +
+                              f"A 12 12 0 1 1 {pac_x + 12} {pac_y + 10} Z",
+                              fill="#ffff00", stroke="#000000", stroke_width=0.5)
+        dwg.add(pacman_path)
+        dwg.add(dwg.circle(center=(pac_x + 8, pac_y - 3), r=2, fill="#000000"))
+        
+        # Pellets trail
+        pellet_y = height - 15
+        for i in range(5):
+            pellet_x = 30 + i * 20
+            dwg.add(dwg.circle(center=(pellet_x, pellet_y), r=3, fill="#ffff00"))
+        
+        # Ghost
+        ghost_x = 25
+        ghost_y = 25
+        ghost_body = dwg.path(
+            d=f"M {ghost_x} {ghost_y + 5} " +
+              f"A 7 7 0 0 1 {ghost_x + 14} {ghost_y + 5} " +
+              f"L {ghost_x + 14} {ghost_y + 14} " +
+              f"L {ghost_x + 11} {ghost_y + 11} " +
+              f"L {ghost_x + 7} {ghost_y + 14} " +
+              f"L {ghost_x + 3} {ghost_y + 11} " +
+              f"L {ghost_x} {ghost_y + 14} Z",
+            fill="#ff0000", opacity=0.7
+        )
+        dwg.add(ghost_body)
+        
+        # Ghost eyes
+        dwg.add(dwg.circle(center=(ghost_x + 5, ghost_y + 8), r=2, fill="#ffffff"))
+        dwg.add(dwg.circle(center=(ghost_x + 10, ghost_y + 8), r=2, fill="#ffffff"))
+    elif theme_name == "Cyberpunk":
+        # Grid overlay
+        for i in range(0, width, 30):
+            dwg.add(dwg.line(start=(i, 0), end=(i, height), 
+                           stroke="#1a1a2e", stroke_width=0.3, opacity=0.4))
+        for i in range(0, height, 30):
+            dwg.add(dwg.line(start=(0, i), end=(width, i), 
+                           stroke="#1a1a2e", stroke_width=0.3, opacity=0.4))
+        
+        # Scan line effect
+        scan_y = height / 2
+        dwg.add(dwg.line(start=(0, scan_y), end=(width, scan_y), 
+                        stroke="#00ff41", stroke_width=2, opacity=0.15))
+        
+        # Glitch rectangles
+        random.seed(456)
+        for _ in range(4):
+            gx = random.randint(0, width - 40)
+            gy = random.randint(0, height - 10)
+            gw = random.randint(15, 40)
+            dwg.add(dwg.rect(insert=(gx, gy), size=(gw, 2), 
+                           fill="#ff00ff", opacity=0.25))
+        
+        # Corner brackets (HUD style)
+        bracket_size = 15
+        dwg.add(dwg.path(d=f"M 10 10 L 10 {10+bracket_size} M 10 10 L {10+bracket_size} 10", 
+                        stroke="#00ffff", stroke_width=2, fill="none", opacity=0.5))
+        dwg.add(dwg.path(d=f"M {width-10} 10 L {width-10} {10+bracket_size} M {width-10} 10 L {width-10-bracket_size} 10", 
+                        stroke="#00ffff", stroke_width=2, fill="none", opacity=0.5))
+    elif theme_name == "Glass":
+        # Neon Liquid Glassmorphism Theme (Enhanced)
+        
+        # Theme Variables
+        bg_col = theme.get("bg_color", "#050511")
+        title_col = theme.get("title_color", "#00e5ff")
+        text_col = theme.get("text_color", "#e2e8f0")
+        border_col = theme.get("border_color", "white")
+        
+        # 1. Definitions
+        # Blur filter for background blobs
+        blob_blur = dwg.filter(id="blobBlur", x="-50%", y="-50%", width="200%", height="200%")
+        blob_blur.feGaussianBlur(in_="SourceGraphic", stdDeviation=40)
+        dwg.defs.add(blob_blur)
+        
+        # Glow filter for text
+        text_glow = dwg.filter(id="textGlow")
+        text_glow.feGaussianBlur(in_="SourceAlpha", stdDeviation=2, result="blur")
+        text_glow.feOffset(in_="blur", dx=0, dy=0, result="offsetBlur")
+        text_glow.feFlood(flood_color=title_col, result="glowColor")
+        text_glow.feComposite(in_="glowColor", in2="offsetBlur", operator="in", result="coloredBlur")
+        text_glow.feMerge(["coloredBlur", "SourceGraphic"])
+        dwg.defs.add(text_glow)
+        
+        # Glass Panel Gradient
+        glass_grad = dwg.linearGradient(start=(0, 0), end=(1, 1), id="glassGrad")
+        glass_grad.add_stop_color(0, "white", opacity=0.15)
+        glass_grad.add_stop_color(1, "white", opacity=0.05)
+        dwg.defs.add(glass_grad)
+        
+        # Border Gradient
+        border_grad = dwg.linearGradient(start=(0, 0), end=(1, 1), id="borderGrad")
+        border_grad.add_stop_color(0, border_col, opacity=0.4)
+        border_grad.add_stop_color(1, border_col, opacity=0.1)
+        dwg.defs.add(border_grad)
+
+        # Background Base
+        dwg.add(dwg.rect(insert=(0, 0), size=("100%", "100%"), rx=16, ry=16, fill=bg_col))
+
+        # Neon Blobs
+        dwg.add(dwg.circle(center=(0, 0), r=120, fill="#ff00ff", filter="url(#blobBlur)", opacity=0.5))
+        dwg.add(dwg.circle(center=(width, height), r=140, fill="#00ffff", filter="url(#blobBlur)", opacity=0.4))
+
+        # 2. Glass Panel
+        margin = 15
+        p_width = width - margin * 2
+        p_height = height - margin * 2
+        dwg.add(dwg.rect(insert=(margin, margin), size=(p_width, p_height), rx=16, ry=16, fill="#000000", opacity=0.3))
+        dwg.add(dwg.rect(insert=(margin, margin), size=(p_width, p_height), rx=16, ry=16, 
+                         fill="url(#glassGrad)", stroke="url(#borderGrad)", stroke_width=1.2))
+        
+        # Top Reflection
+        reflection_grad = dwg.linearGradient(start=(0, 0), end=(0, 1), id="reflGrad")
+        reflection_grad.add_stop_color(0, "white", opacity=0.08)
+        reflection_grad.add_stop_color(1, "white", opacity=0)
+        dwg.defs.add(reflection_grad)
+        dwg.add(dwg.rect(insert=(margin + 4, margin + 4), size=(p_width - 8, p_height / 4), rx=12, ry=12, fill="url(#reflGrad)"))
+
+        # 3. Content Title
+        title_text = f"{data['username']}'s Stats".upper()
+        # Dynamic font size for title
+        base_f = 16
+        n_len = len(title_text)
+        d_font_size = max(11, base_f - (n_len - 15) // 1.5) if n_len > 15 else base_f
+        
+        dwg.add(dwg.text(title_text, insert=(width/2, margin + 35), fill="white", font_size=d_font_size, 
+                         font_weight="800", font_family="'Inter', system-ui, sans-serif", text_anchor="middle", 
+                         letter_spacing=2, filter="url(#textGlow)"))
+        
+        # Adjust start_y for stats
+        start_y = margin + 65
+        item_height = 25
+        current_y = start_y
+        
+        stats_map = [
+            ("stars", "Total Stars", f"{data.get('total_stars', 0)}", data.get('total_stars', 0)),
+            ("commits", "Total Commits", f"{data.get('total_commits', 0)}", data.get('total_commits', 0)),
+            ("repos", "Public Repos", f"{data.get('public_repos', 0)}", data.get('public_repos', 0)),
+            ("followers", "Followers", f"{data.get('followers', 0)}", data.get('followers', 0))
+        ]
+        
+        for idx, (key, label, display_value, numeric_value) in enumerate(stats_map):
+            if show_options.get(key, True):
+                # Row line (subtle)
+                dwg.add(dwg.line(start=(margin + 20, current_y + 8), end=(width - margin - 20, current_y + 8), 
+                                stroke="white", opacity=0.04))
+                
+                # Label
+                dwg.add(dwg.text(f"{label}:", insert=(margin + 25, current_y), fill=text_col, 
+                                 font_size=11, font_family="'Inter', sans-serif", opacity=0.8))
+                
+                # Value
+                dwg.add(dwg.text(f"{display_value}", insert=(width - margin - 25, current_y), fill="white", 
+                                 font_size=11, font_family="'Inter', sans-serif", text_anchor="end", font_weight="bold"))
+                
+                current_y += item_height
+        
+        return dwg.tostring()
     
-    # Title with animation
+    
+    # Title
     font_family = theme["font_family"]
     title_params = {
         "insert": (20, 35),
@@ -109,9 +292,7 @@ def draw_stats_card(data, theme_name="Default", show_options=None, custom_colors
     }
     
     if animations_enabled:
-        title_elem = dwg.text(f"{data['username']}'s Stats", **title_params)
-        title_elem["class"] = "anim-slide-down"
-        dwg.add(title_elem)
+        dwg.add(dwg.text(f"{data['username']}'s Stats", **title_params))
     else:
         dwg.add(dwg.text(f"{data['username']}'s Stats", **title_params))
     
@@ -142,10 +323,7 @@ def draw_stats_card(data, theme_name="Default", show_options=None, custom_colors
             }
             
             if animations_enabled:
-                icon = dwg.circle(**icon_params)
-                icon["class"] = "anim-pulse"
-                icon["style"] = f"animation-delay: {idx * 0.1}s"
-                dwg.add(icon)
+                dwg.add(dwg.circle(**icon_params))
             else:
                 dwg.add(dwg.circle(**icon_params))
             
@@ -158,10 +336,7 @@ def draw_stats_card(data, theme_name="Default", show_options=None, custom_colors
             }
             
             if animations_enabled:
-                label_elem = dwg.text(f"{label}:", **label_params)
-                label_elem["class"] = "anim-fade-in"
-                label_elem["style"] = f"animation-delay: {0.1 + idx * 0.15}s; animation-fill-mode: both;"
-                dwg.add(label_elem)
+                dwg.add(dwg.text(f"{label}:", **label_params))
             else:
                 dwg.add(dwg.text(f"{label}:", **label_params))
             
@@ -176,13 +351,7 @@ def draw_stats_card(data, theme_name="Default", show_options=None, custom_colors
             }
             
             if animations_enabled:
-                value_elem = dwg.text(f"{display_value}", **value_params)
-                value_elem["class"] = "anim-slide-up stat-counter"
-                value_elem["style"] = f"animation-delay: {0.2 + idx * 0.15}s; animation-fill-mode: both;"
-                # Add data-target for JavaScript counter
-                if numeric_value > 0:
-                    value_elem["data-target"] = str(numeric_value)
-                dwg.add(value_elem)
+                dwg.add(dwg.text(f"{display_value}", **value_params))
             else:
                 dwg.add(dwg.text(f"{display_value}", **value_params))
                              
