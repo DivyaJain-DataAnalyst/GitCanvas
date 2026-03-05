@@ -12,6 +12,82 @@ if load_dotenv:
     load_dotenv()
 
 
+def calculate_streak_data(contributions):
+    """
+    Calculate current streak, longest streak, and total contributions from contribution data.
+    
+    Args:
+        contributions: List of dicts with 'date' and 'count' keys, sorted by date
+    
+    Returns:
+        Dict with 'current_streak', 'longest_streak', and 'total_contributions'
+    """
+    from datetime import datetime, timedelta
+    
+    if not contributions:
+        return {
+            'current_streak': 0,
+            'longest_streak': 0,
+            'total_contributions': 0
+        }
+    
+    # Sort contributions by date (oldest first)
+    sorted_contribs = sorted(contributions, key=lambda x: x.get('date', ''))
+    
+    # Calculate total contributions
+    total_contributions = sum(c.get('count', 0) for c in sorted_contribs)
+    
+    # Calculate streaks
+    current_streak = 0
+    longest_streak = 0
+    temp_streak = 0
+    
+    today = datetime.utcnow().date()
+    
+    # Build a dict for quick lookup
+    contrib_dict = {c['date']: c['count'] for c in sorted_contribs}
+    
+    # Find the most recent contribution date
+    if sorted_contribs:
+        last_date_str = sorted_contribs[-1]['date']
+        last_date = datetime.strptime(last_date_str, "%Y-%m-%d").date()
+    else:
+        last_date = today
+    
+    # Calculate current streak (working backwards from today)
+    check_date = today
+    while True:
+        date_str = check_date.strftime("%Y-%m-%d")
+        if date_str in contrib_dict and contrib_dict[date_str] > 0:
+            current_streak += 1
+            check_date -= timedelta(days=1)
+        else:
+            # Allow one day gap (today might not have contributions yet)
+            if check_date == today:
+                check_date -= timedelta(days=1)
+                continue
+            break
+    
+    # Calculate longest streak by iterating through all dates
+    if sorted_contribs:
+        start_date = datetime.strptime(sorted_contribs[0]['date'], "%Y-%m-%d").date()
+        check_date = start_date
+        
+        while check_date <= today:
+            date_str = check_date.strftime("%Y-%m-%d")
+            if date_str in contrib_dict and contrib_dict[date_str] > 0:
+                temp_streak += 1
+                longest_streak = max(longest_streak, temp_streak)
+            else:
+                temp_streak = 0
+            check_date += timedelta(days=1)
+    
+    return {
+        'current_streak': current_streak,
+        'longest_streak': longest_streak,
+        'total_contributions': total_contributions
+    }
+
 
 def fetch_github_graphql(username, token=None):
     if not token:
@@ -166,15 +242,26 @@ def get_live_github_data(username, token=None):
 
         # Ensure total_commits is always an integer
         total_commits = 0 
+        fallback_contributions = []
 
         try:
             contrib_url = f"https://github-contributions-api.jogruber.de/v4/{username}"
-            contrib_resp = requests.get(contrib_url)
+            print(f"Fetching contributions from fallback API: {contrib_url}")
+            contrib_resp = requests.get(contrib_url, timeout=10)
             if contrib_resp.status_code == 200:
                 c_data = contrib_resp.json()
                 if 'total' in c_data and isinstance(c_data['total'], dict):
                     # Sum all year totals into a single integer
                     total_commits = sum(c_data['total'].values())
+                
+                # Extract contribution calendar data for streak calculation
+                if 'contributions' in c_data and isinstance(c_data['contributions'], list):
+                    for contrib in c_data['contributions']:
+                        fallback_contributions.append({
+                            'date': contrib.get('date', ''),
+                            'count': contrib.get('count', 0)
+                        })
+                    print(f"Fetched {len(fallback_contributions)} contribution days from fallback API")
             # If the response isn't 200, it stays as 0
         except Exception as ex:
             print(f"Contrib API Error: {ex}")
@@ -199,12 +286,33 @@ def get_live_github_data(username, token=None):
                 data["contributions"] = contributions
                 data["total_commits"] = gql_total_commits
                 data["contribution_weeks"] = contribution_weeks
+                
+                # Calculate streak data from contributions
+                data["streak_data"] = calculate_streak_data(contributions)
             except Exception:
                 pass  # Never break REST fallback
 
         if "contributions" not in data:
-            # Fallback to empty list; UI should handle missing contribution data gracefully.
-            data["contributions"] = []
+            # Use fallback contributions if GraphQL didn't work
+            if fallback_contributions:
+                data["contributions"] = fallback_contributions
+                print(f"Using fallback contributions: {len(fallback_contributions)} days")
+            else:
+                # Fallback to empty list; UI should handle missing contribution data gracefully.
+                data["contributions"] = []
+        
+        # If we don't have streak data yet, try to calculate from any contributions we have
+        if "streak_data" not in data and data.get("contributions"):
+            data["streak_data"] = calculate_streak_data(data["contributions"])
+            print(f"Calculated streak data: current={data['streak_data']['current_streak']}, longest={data['streak_data']['longest_streak']}")
+        
+        # Final fallback for streak data
+        if "streak_data" not in data:
+            data["streak_data"] = {
+                'current_streak': 0,
+                'longest_streak': 0,
+                'total_contributions': 0
+            }
 
         return data
 
@@ -217,6 +325,11 @@ def get_live_github_data(username, token=None):
 
 def get_mock_data(username):
     """Returns dummy data for layout testing/building without hitting API limits"""
+    mock_contributions = [
+        {"date": f"2025-01-{i+1:02d}", "count": (i * 3) % 10}
+        for i in range(80)
+    ]
+    
     return {
         "username": username,
         "total_stars": 120,
@@ -225,10 +338,8 @@ def get_mock_data(username):
         "followers": 85,
         "created_at": "2015-06-15T00:00:00Z",
         "top_languages": [("Python", 10), ("JavaScript", 5), ("Rust", 2)],
-        "contributions":[
-            {"date": f"2025-01-{i+1:02d}", "count": (i * 3) % 10}
-            for i in range(80)
-        ],
+        "contributions": mock_contributions,
+        "streak_data": calculate_streak_data(mock_contributions),
         "top_repos": [
             {"name": "awesome-project", "description": "A cool project", "language": "Python", "stars": 150, "forks": 30, "updated_at": "2025-01-15"},
             {"name": "web-app", "description": "Modern web application", "language": "JavaScript", "stars": 89, "forks": 12, "updated_at": "2025-01-20"},
