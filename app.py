@@ -2,6 +2,7 @@ import streamlit as st  # type: ignore
 import base64
 import os
 import re
+import json
 
 # HEX color regex validation pattern
 HEX_COLOR_REGEX = re.compile(r'^#[0-9A-Fa-f]{6}$')
@@ -228,7 +229,8 @@ def render_tab(svg_bytes, endpoint, username, selected_theme, custom_colors, hid
 
         # --- PNG & JPEG Download via browser Canvas (no system dependencies) ---
         svg_b64 = base64.b64encode(svg_bytes.encode("utf-8")).decode("utf-8")
-        filename_prefix = f"{endpoint}_{username}"
+        # Sanitize filename to prevent XSS injection
+        filename_prefix_safe = json.dumps(f"{endpoint}_{username}")
         components.html(f"""
         <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
             <button onclick="downloadSVGAs('png')" style="
@@ -279,7 +281,7 @@ def render_tab(svg_bytes, endpoint, username, selected_theme, custom_colors, hid
                 }}
                 ctx.drawImage(img, 0, 0, w, h);
                 const link = document.createElement('a');
-                link.download = '{filename_prefix}.' + (format === 'jpeg' ? 'jpg' : 'png');
+                link.download = {filename_prefix_safe} + '.' + (format === 'jpeg' ? 'jpg' : 'png');
                 link.href = canvas.toDataURL('image/' + format, 0.95);
                 link.click();
                 URL.revokeObjectURL(url);
