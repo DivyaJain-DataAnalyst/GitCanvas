@@ -1,10 +1,13 @@
 import requests
 import os
+import logging
 
 try:
     from dotenv import load_dotenv
 except Exception:
     load_dotenv = None
+
+logger = logging.getLogger(__name__)
 
 GITHUB_GRAPHQL_URL = "https://api.github.com/graphql"
 
@@ -289,8 +292,9 @@ def get_live_github_data(username, token=None):
                 
                 # Calculate streak data from contributions
                 data["streak_data"] = calculate_streak_data(contributions)
-            except Exception:
-                pass  # Never break REST fallback
+            except Exception as e:
+                logger.warning(f"GraphQL failed for {username}: {e}, falling back to REST")
+                data['data_source'] = 'rest_fallback'
 
         if "contributions" not in data:
             # Use fallback contributions if GraphQL didn't work

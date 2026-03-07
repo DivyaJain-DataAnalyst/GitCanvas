@@ -1,6 +1,11 @@
 import streamlit as st  # type: ignore
 import base64
 import os
+import re
+import json
+
+# HEX color regex validation pattern
+HEX_COLOR_REGEX = re.compile(r'^#[0-9A-Fa-f]{6}$')
 import streamlit.components.v1 as components
 from dotenv import load_dotenv
 from roast_widget_streamlit import render_roast_widget
@@ -83,9 +88,32 @@ with st.sidebar:
         
         # Use theme-specific keys so each theme maintains its own customization
         custom_bg = st.color_picker("Background", value=get_col("bg_color"), key=f"customize_bg_{selected_theme}")
+        
+        # Validate HEX color format
+        if not HEX_COLOR_REGEX.match(custom_bg):
+            st.error("Invalid color format")
+            custom_bg = get_col("bg_color")
+        
         custom_title = st.color_picker("Title Text", value=get_col("title_color"), key=f"customize_title_{selected_theme}")
+        
+        # Validate title color format
+        if not HEX_COLOR_REGEX.match(custom_title):
+            st.error("Invalid title color format")
+            custom_title = get_col("title_color")
+        
         custom_text = st.color_picker("Body Text", value=get_col("text_color"), key=f"customize_text_{selected_theme}")
+        
+        # Validate text color format
+        if not HEX_COLOR_REGEX.match(custom_text):
+            st.error("Invalid text color format")
+            custom_text = get_col("text_color")
+        
         custom_border = st.color_picker("Border", value=get_col("border_color"), key=f"customize_border_{selected_theme}")
+        
+        # Validate border color format
+        if not HEX_COLOR_REGEX.match(custom_border):
+            st.error("Invalid border color format")
+            custom_border = get_col("border_color")
         
         # Build custom colors dict if changed
         custom_colors = {}
@@ -190,30 +218,78 @@ def render_tab(svg_bytes, endpoint, username, selected_theme, custom_colors, hid
         b64 = base64.b64encode(svg_bytes.encode('utf-8')).decode("utf-8")
         st.markdown(f'<img src="data:image/svg+xml;base64,{b64}" style="max-width: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.3); border-radius: 10px;"/>', unsafe_allow_html=True)
 
+        # --- SVG Download ---
         st.download_button(
-            label="Download SVG",
+            label="⬇️ Download SVG",
             data=svg_bytes.encode("utf-8"),
             file_name=f"{endpoint}_{username}.svg",
             mime="image/svg+xml",
             use_container_width=True
         )
 
-        png_bytes = None
-        try:
-            import cairosvg  # Local import to avoid startup crash if cairo libs are missing.
-            png_bytes = cairosvg.svg2png(bytestring=svg_bytes.encode("utf-8"))
-        except Exception:
-            png_bytes = None
+        # --- PNG & JPEG Download via browser Canvas (no system dependencies) ---
+        svg_b64 = base64.b64encode(svg_bytes.encode("utf-8")).decode("utf-8")
+        # Sanitize filename to prevent XSS injection
+        filename_prefix_safe = json.dumps(f"{endpoint}_{username}")
+        components.html(f"""
+        <div style="display:flex; flex-direction:column; gap:8px; margin-top:4px;">
+            <button onclick="downloadSVGAs('png')" style="
+                width:100%; padding:8px; font-size:14px; cursor:pointer;
+                background:#1a1a2e; color:white; border:1px solid #444;
+                border-radius:6px;">
+                ⬇️ Download PNG
+            </button>
+            <button onclick="downloadSVGAs('jpeg')" style="
+                width:100%; padding:8px; font-size:14px; cursor:pointer;
+                background:#1a1a2e; color:white; border:1px solid #444;
+                border-radius:6px;">
+                ⬇️ Download JPEG
+            </button>
+        </div>
+        <script>
+        function downloadSVGAs(format) {{
+            const svgText = atob('{svg_b64}');
+            const parser = new DOMParser();
+            const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
+            const svgEl = svgDoc.documentElement;
 
-        if png_bytes:
-            # Download PNG button
-            st.download_button(
-                label="Download PNG",
-                data=png_bytes,
-                file_name=f"{endpoint}_{username}.png",
-                mime="image/png",
-                use_container_width=True
-            )
+            // Get dimensions from width/height or viewBox
+            let w = parseInt(svgEl.getAttribute('width')) || 0;
+            let h = parseInt(svgEl.getAttribute('height')) || 0;
+            if (!w || !h) {{
+                const vb = svgEl.getAttribute('viewBox');
+                if (vb) {{
+                    const parts = vb.split(/[\s,]+/);
+                    w = parseFloat(parts[2]) || 800;
+                    h = parseFloat(parts[3]) || 400;
+                }} else {{
+                    w = 800; h = 400;
+                }}
+            }}
+
+            const blob = new Blob([svgText], {{type: 'image/svg+xml'}});
+            const url = URL.createObjectURL(blob);
+            const img = new Image();
+            img.onload = function() {{
+                const canvas = document.createElement('canvas');
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                if (format === 'jpeg') {{
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, w, h);
+                }}
+                ctx.drawImage(img, 0, 0, w, h);
+                const link = document.createElement('a');
+                link.download = {filename_prefix_safe} + '.' + (format === 'jpeg' ? 'jpg' : 'png');
+                link.href = canvas.toDataURL('image/' + format, 0.95);
+                link.click();
+                URL.revokeObjectURL(url);
+            }};
+            img.src = url;
+        }}
+        </script>
+        """, height=100)
 
     with col2:
         st.subheader("Integration")
