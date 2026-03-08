@@ -254,17 +254,12 @@ def render_tab(svg_bytes, endpoint, username, selected_theme, custom_colors, hid
             const svgDoc = parser.parseFromString(svgText, 'image/svg+xml');
             const svgEl = svgDoc.documentElement;
 
-            let w = parseInt(svgEl.getAttribute('width')) || 0;
-            let h = parseInt(svgEl.getAttribute('height')) || 0;
-            if (!w || !h) {{
-                const vb = svgEl.getAttribute('viewBox');
-                if (vb) {{
-                    const parts = vb.split(/[\s,]+/);
-                    w = parseFloat(parts[2]) || 800;
-                    h = parseFloat(parts[3]) || 400;
-                }} else {{
-                    w = 800; h = 400;
-                }}
+            const vb = svgEl.getAttribute('viewBox');
+            let w = 800, h = 400;
+            if (vb) {{
+                const parts = vb.split(/[\s,]+/);
+                w = parseFloat(parts[2]) || 800;
+                h = parseFloat(parts[3]) || 400;
             }}
 
             const blob = new Blob([svgText], {{type: 'image/svg+xml'}});
