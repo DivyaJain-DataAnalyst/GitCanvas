@@ -132,8 +132,7 @@ async def get_contributions(
     text_color: Optional[str] = None,
     border_color: Optional[str] = None,
     start_date: Optional[str] = None,
-    end_date: Optional[str] = None,
-    animations_enabled: bool = True
+    end_date: Optional[str] = None
 ):
     data = github_api.get_live_github_data(username) or github_api.get_mock_data(username)
     custom_colors = parse_colors(bg_color, title_color, text_color, border_color)
