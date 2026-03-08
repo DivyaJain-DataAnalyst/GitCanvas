@@ -1,11 +1,21 @@
 import hashlib
 from fastapi import FastAPI, Response, Query, Request
+from fastapi.middleware.cors import CORSMiddleware
 from generators import stats_card, lang_card, contrib_card, recent_activity_card, trophy_card, streak_card, repo_card
 from utils import github_api
 from utils.cache import cache_svg_response, get_cache_stats, clear_cache
 from typing import Optional
 
 app = FastAPI()
+
+# Configure CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure appropriately for production
+    allow_methods=["GET", "DELETE"],  # Allow GET for API endpoints and DELETE for cache management
+    allow_headers=["*"],
+    allow_credentials=False,  # Set to True if you need to support credentials
+)
 
 # Implements HTTP conditional requests for CDN-safe SVG caching
 
