@@ -258,10 +258,10 @@ def get_live_github_data(username, token=None):
         # User details
         user_url = f"https://api.github.com/users/{username}"
         headers = get_github_headers(token)
-        log_api_call("GitHub User API", user_url, has_token=bool(token))
         
         try:
             user_resp = requests.get(user_url, headers=headers, timeout=10)
+            log_api_call(logger, user_url, user_resp.status_code, has_token=bool(token))
         except requests.RequestException as e:
             logger.error(f"Failed to fetch user data: {e}")
             return None
@@ -286,10 +286,11 @@ def get_live_github_data(username, token=None):
         
         # Repos for stars count (limited to first 100 public repos for basic sum without pagination for MVP speed)
         repos_url = f"https://api.github.com/users/{username}/repos?per_page=100&sort=updated"
-        log_api_call("GitHub Repos API", repos_url, has_token=bool(token))
         
         try:
             repos_resp = requests.get(repos_url, headers=headers, timeout=10)
+            if repos_resp:
+                log_api_call(logger, repos_url, repos_resp.status_code, has_token=bool(token))
         except requests.RequestException as e:
             logger.error(f"Failed to fetch repos: {e}")
             repos_resp = None
@@ -341,10 +342,11 @@ def get_live_github_data(username, token=None):
 
         try:
             contrib_url = f"https://github-contributions-api.jogruber.de/v4/{username}"
-            log_api_call("Contributions Fallback API", contrib_url)
             
             try:
                 contrib_resp = requests.get(contrib_url, timeout=10)
+                if contrib_resp:
+                    log_api_call(logger, contrib_url, contrib_resp.status_code, has_token=False)
             except requests.RequestException as e:
                 logger.error(f"Failed to fetch contributions: {e}")
                 contrib_resp = None
