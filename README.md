@@ -2,7 +2,7 @@
 [![Streamlit Live App - Click here to view!](https://img.shields.io/badge/Streamlit-Live%20App-5314C4?logo=streamlit)](https://gitcanvas-dm.streamlit.app/)
 
 GitCanvas is a powerful Streamlit application that transforms your GitHub contribution history into stunning visual art. 
-Say goodbye to boring green squares — visualize your coding journey with style!
+Say goodbye to boring green squares... visualize your coding journey with style, create your own themes, and make you GitHub truly personal!
 
 ## ✨ Features
 
@@ -10,52 +10,58 @@ Say goodbye to boring green squares — visualize your coding journey with style
 Transform your GitHub stats with our diverse theme library:
 
 - **🌌 Space**: Contributions become twinkling stars in the cosmos
-- **🎮 Gaming**: 8-bit retro Snake eating your commits
 - **🦸 Marvel**: Comic-book style with glowing Infinity Stones
 - **🤖 Matrix**: Digital rain cascading based on contribution intensity
-- **🧠 Neural**: Brain-like network with synaptic connections
-- **🌊 Ocean**: Underwater scene with fish representing contributions
 - **🏏 Cricket**: Stadium theme with runs scored from your commits
 - **👾 Pac-Man**: Arcade maze with pellets and power-ups
 - **🌃 Cyberpunk**: Neon-lit futuristic grid with glowing blocks
-- **💎 Glass**: Modern glassmorphism with liquid neon effects
-- **🔥 Fire**: Blazing flames visualization
 - **🦑 Squid Game**: Inspired by the popular series
 - **👻 Stranger Things**: Upside Down theme with Demogorgon
-- **🕷️ Wednesday**: Gothic dark theme
 - **🎨 Retro**: Vintage typewriter style on aged paper
-- **🐉 Dracula**: Classic dark theme with purple accents
-- **🌅 Default**: Clean, GitHub-inspired design
+  
+  and more..... (with all your new contributions!!!)
 
 ### 📊 Comprehensive Stats Cards
-- **Main Stats**: Total stars, commits, repos, followers
-- **Top Languages**: Your most-used programming languages
-- **Top Repositories**: Showcase your best projects
-- **Contribution Graph**: Heatmap with customizable date ranges
-- **🔥 GitHub Streak**: Track your contribution streaks
-- **🏆 Trophy Card**: Achievement badges and milestones
-- **📱 Recent Activity**: Latest GitHub events and interactions
-- **🔗 Social Links**: Connect all your profiles
-- **🎯 Icons & Badges**: Tech stack visualization
+
+| Card Type | What It Shows |
+|-----------|---------------|
+| Main Stats | Total stars, commits, repos, followers |
+| Top Languages | Your most-used programming languages |
+| Top Repositories | Showcase your best projects |
+| Contribution Graph | Heatmap with customizable date ranges |
+| GitHub Streak 🔥 | Track your contribution streaks |
+| Trophy Card 🏆 | Achievement badges and milestones |
+| Recent Activity 📱 | Latest GitHub events and interactions |
+| Social Links 🔗 | Connect all your profiles |
+| Icons & Badges 🎯 | Tech stack visualization |
 
 ### 🤖 AI-Powered Features
-- **🔥 AI Roast**: Get humorous AI-generated roasts of your GitHub profile
-- Supports multiple AI providers (OpenAI, Google Gemini)
-- Customize roast style: savage, friendly, or motivational
+
+| Feature | Description |
+|---------|-------------|
+| AI Roast 🔥 | Get humorous AI-generated roasts of your GitHub profile |
+| AI Providers | Supports OpenAI and Google Gemini |
+| Roast Styles | Choose savage, friendly, or motivational tone |
 
 ### 🎭 Customization Options
-- **Custom Theme Creator**: Build and save your own color schemes
-- **Color Customization**: Override any theme's colors on the fly
-- **Animations**: Enable/disable SVG animations
-- **Date Range Filtering**: View contributions for specific time periods
-- **Multiple Export Formats**: Markdown and HTML code generation
+
+| Option | Description |
+|--------|-------------|
+| Custom Theme Creator | Build and save your own color schemes |
+| Color Customization | Override any theme's colors on the fly |
+| Animations | Enable/disable SVG animations |
+| Date Range Filtering | View contributions for specific time periods |
+| Export Formats | Markdown and HTML code generation |
 
 ### 📥 Export & Integration
-- **Download as SVG**: Vector graphics for any resolution
-- **Download as PNG/JPEG**: Raster images via browser canvas
-- **Copy Markdown**: Embed cards directly in GitHub README
-- **Copy HTML**: Use in websites and blogs
-- **API Endpoints**: FastAPI backend for programmatic access
+
+| Export Type | Description |
+|-------------|-------------|
+| SVG Download | Vector graphics for any resolution |
+| PNG/JPEG Download | Raster images via browser canvas |
+| Markdown Code | Embed cards directly in GitHub README |
+| HTML Code | Use in websites and blogs |
+| API Endpoints | FastAPI backend for programmatic access |
 
 ## 🛠 Quick Start
 
@@ -71,9 +77,9 @@ pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The app will open at `http://localhost:8501`
+The app will open at `http://localhost:8501` ... or you can just use the live deployed application!
 
-**Optional**: Add a `.env` file with your `GITHUB_TOKEN` for higher API rate limits (5,000/hour vs 60/hour).
+**Optional**: Add a `.env` file with your `GITHUB_TOKEN` for higher API rate limits (5,000/hour vs 60/hour)
 
 ## 🎯 How to Use
 
