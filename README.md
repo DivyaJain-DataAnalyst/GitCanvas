@@ -107,7 +107,7 @@ The app will open at `http://localhost:8501` ... or you can just use the live de
 
 ## Documentation
 
-- **[TUTORIAL.md](TUTORIAL.md)** - Complete contributor guide with setup instructions and theme creation
+- **[CONTRIBUTING.md](CONTRIBUTING.md)** - Complete contributor guide with setup instructions and theme creation
 - **API Docs** - FastAPI auto-generated documentation at `/docs` endpoint
 
 ## 🐛 Issues & Feedback
