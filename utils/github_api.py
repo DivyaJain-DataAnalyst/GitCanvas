@@ -2,6 +2,8 @@ import requests
 import os
 import logging
 from .cache import cache_github_api
+import streamlit as st
+
 
 try:
     from dotenv import load_dotenv
@@ -105,7 +107,7 @@ def calculate_streak_data(contributions):
 @cache_github_api
 def fetch_github_graphql(username, token=None):
     if not token:
-        token = os.getenv("GITHUB_TOKEN")
+        token = token or st.secrets.get("GITHUB_TOKEN") or os.getenv("GITHUB_TOKEN")
     if not token:
         return None
 
@@ -128,7 +130,7 @@ def fetch_github_graphql(username, token=None):
     """
 
     headers = {
-        "Authorization": f"Bearer {token}"
+        "Authorization": f"token {token}"
     }
 
     try:
@@ -239,7 +241,7 @@ def get_github_headers(token=None):
     }
 
     if not token:
-        token = os.getenv("GITHUB_TOKEN")
+        token = token or st.secrets.get("GITHUB_TOKEN") or os.getenv("GITHUB_TOKEN")
     if token:
         headers["Authorization"] = f"Bearer {token}"
 
