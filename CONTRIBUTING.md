@@ -2,6 +2,8 @@
 
 Complete guide for setting up GitCanvas locally and creating custom themes.
 
+```New themes, new cards and new elements to personalise your GitHub Readme's are always welcome!!!```
+
 ---
 
 ## 🚀 Quick Setup
