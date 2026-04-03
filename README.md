@@ -1,6 +1,10 @@
 # GitCanvas 🎨
 [![Streamlit Live App - Click here to view!](https://img.shields.io/badge/Streamlit-Live%20App-5314C4?logo=streamlit)](https://gitcanvas-dm.streamlit.app/)
 
+## ACM Sourcery Navigation
+
+[![ACM Sourcery - Contributor Guide](https://img.shields.io/badge/ACM%20Sourcery-Contributor%20Guide-1D4ED8?style=for-the-badge)](PROJECT_DETAILS.md)
+
 GitCanvas is a powerful Streamlit application that transforms your GitHub contribution history into stunning visual art. 
 Say goodbye to boring green squares... visualize your coding journey with style, create your own themes, and make you GitHub truly personal!
 
@@ -100,10 +104,15 @@ The app will open at `http://localhost:8501` ... or you can just use the live de
 
 ### How to Contribute
 
-1. Fork the repository and create a feature branch
-2. Make your changes (always use real GitHub data, never fake contributions)
-3. Test thoroughly with actual GitHub usernames
-4. Submit a Pull Request with clear description (screenshots and/or screen recordings of themes preferred)
+1. Fork this repository to your GitHub account (required before sending a PR)
+2. Clone your fork and create a feature branch
+3. Push your branch to your fork
+4. Open a Pull Request from your fork to `devanshi14malhotra/GitCanvas`
+5. Make your changes (always use real GitHub data, never fake contributions)
+6. Test thoroughly with actual GitHub usernames
+7. Submit a Pull Request with clear description (screenshots and/or screen recordings of themes preferred)
+
+If you like this project, please consider giving the repository a star. It is greatly appreciated and helps the project reach more contributors.
 
 ## Documentation
 
@@ -125,6 +134,6 @@ This project is licensed under the [MIT License](LICENSE)
 
 ---
 
-**Made with ❤️ by Devanshi Malhotra and contributors**
+**Made by Devanshi Malhotra and contributors**
 
 Turn your code into art! 🎨✨
