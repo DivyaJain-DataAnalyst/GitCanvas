@@ -215,5 +215,5 @@ If you are new to the project, start with one of the Good First Issues above and
 Happy building and all the best for Sourcery.
 
 ``` bash
- If you like this project, please consider giving the repository a star. It is greatly appreciated and helps the project reach more contributors.
+ If you like this project, please consider giving the repository a ⭐ STAR ⭐.
 ```
