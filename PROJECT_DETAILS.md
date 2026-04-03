@@ -158,6 +158,11 @@ Follow this checklist for any feature PR during Sourcery.
 
 ---
 
+#### 🎨 Apart from these, you’re encouraged to come up with your own ideas as well... You can raise new issues, get them assigned, and then submit PRs. Feel free to be creative, as this application is for you, and it’s a great opportunity to make your GitHub README truly reflect your personality...
+#### You can also explore existing issues and pick up any that interest you...
+
+---
+
 ## 6. Contributor Notes
 
 ### Prerequisites
@@ -209,5 +214,6 @@ If you are new to the project, start with one of the Good First Issues above and
 
 Happy building and all the best for Sourcery.
 
-``` If you like this project, please consider giving the repository a star. It is greatly appreciated and helps the project reach more contributors.
+``` bash
+ If you like this project, please consider giving the repository a star. It is greatly appreciated and helps the project reach more contributors.
 ```
