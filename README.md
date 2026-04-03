@@ -1,12 +1,12 @@
 # GitCanvas 🎨
 [![Streamlit Live App - Click here to view!](https://img.shields.io/badge/Streamlit-Live%20App-5314C4?logo=streamlit)](https://gitcanvas-dm.streamlit.app/)
 
+GitCanvas is a powerful Streamlit application that transforms your GitHub contribution history into stunning visual art. 
+Say goodbye to boring green squares... visualize your coding journey with style, create your own themes, and make you GitHub truly personal!
+
 ## ACM Sourcery Navigation
 
 [![ACM Sourcery - Contributor Guide](https://img.shields.io/badge/ACM%20Sourcery-Contributor%20Guide-1D4ED8?style=for-the-badge)](PROJECT_DETAILS.md)
-
-GitCanvas is a powerful Streamlit application that transforms your GitHub contribution history into stunning visual art. 
-Say goodbye to boring green squares... visualize your coding journey with style, create your own themes, and make you GitHub truly personal!
 
 ## ✨ Features
 
@@ -131,6 +131,10 @@ This project is licensed under the [MIT License](LICENSE)
 - **Live Demo**: [gitcanvas-dm.streamlit.app](https://gitcanvas-dm.streamlit.app/)
 - **GitHub Repository**: [devanshi14malhotra/GitCanvas](https://github.com/devanshi14malhotra/GitCanvas)
 - **Issues & Feature Requests**: [GitHub Issues](https://github.com/devanshi14malhotra/GitCanvas/issues)
+
+``` bash
+ If you like this project, please consider giving the repository a ⭐ STAR ⭐.
+```
 
 ---
 
