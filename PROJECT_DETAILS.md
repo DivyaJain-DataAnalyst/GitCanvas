@@ -2,6 +2,8 @@
 
 This document is tailored for contributors participating in the open source event Sourcery by ACM IGDTUW.
 
+[![GitCanvas - Issues](https://img.shields.io/badge/GitCanvas-Issues-9113ff?style=for-the-badge)](https://github.com/devanshi14malhotra/GitCanvas/issues)
+
 ## 1. Project Overview
 
 ### Description
