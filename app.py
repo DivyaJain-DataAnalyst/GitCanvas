@@ -173,7 +173,7 @@ with st.sidebar:
                 st.error("Please enter a theme name")
 
     github_token = st.text_input(
-        "GitHub Token (optional if set in .env)",
+        "GitHub Token (enter your token to view actual data)",
         type="password",
         help="Paste a token here, or set GITHUB_TOKEN in a .env file in the project root. Sidebar value overrides .env.",
     )
