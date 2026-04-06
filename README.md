@@ -6,7 +6,7 @@ Say goodbye to boring green squares... visualize your coding journey with style,
 
 ## ACM Sourcery Navigation
 
-[![ACM Sourcery - Contributor Guide](https://img.shields.io/badge/ACM%20Sourcery-Contributor%20Guide-1D4ED8?style=for-the-badge)](PROJECT_DETAILS.md)
+[![ACM Sourcery - Contributor Guide](https://img.shields.io/badge/ACM%20Sourcery-Contributor%20Guide-1D4EF8?style=for-the-badge)](PROJECT_DETAILS.md)
 
 ## ✨ Features
 
