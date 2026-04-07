@@ -9,7 +9,7 @@ HEX_COLOR_REGEX = re.compile(r'^#[0-9A-Fa-f]{6}$')
 import streamlit.components.v1 as components
 from dotenv import load_dotenv
 from roast_widget_streamlit import render_roast_widget
-from generators import stats_card, lang_card, contrib_card, badge_generator, recent_activity_card, streak_card, repo_card, social_card, trophy_card
+from generators import stats_card, lang_card, contrib_card, badge_generator, recent_activity_card, streak_card, repo_card, social_card, trophy_card, sparkline
 from utils import github_api
 from themes.styles import THEMES, get_all_themes, CUSTOM_THEMES
 from generators.visual_elements import (
@@ -346,6 +346,7 @@ def render_tab(svg_bytes, endpoint, username, selected_theme, custom_colors, hid
 
 with tab1:
     st.subheader("Stats Card")
+    
     # Options
     c1, c2, c3, c4 = st.columns(4)
     show_stars = c1.checkbox("Stars", True)
@@ -358,6 +359,36 @@ with tab1:
     # Pass selected_theme string to support theme-specific logic (e.g. Glass)
     svg_bytes = stats_card.draw_stats_card(data, selected_theme, show_ops, custom_colors, animations_enabled)
     render_tab(svg_bytes, "stats", username, selected_theme, custom_colors, hide_params=show_ops, code_template=f"[![{username}'s Stats]({{url}})](https://github.com/{{username}})", output_format=output_format)
+    
+    # Prepare the SVG string from your generator
+    spark_data = github_api.fetch_sparkline_data(username, github_token)
+    theme_color = current_theme_opts.get("title_color", "#58a6ff")
+    spark_svg = sparkline.draw_sparkline(spark_data, theme_color)
+
+    st.markdown("---")
+
+    # RENDER THIS WAY (Crucial)
+    st.subheader("30-Day Activity Sparkline")
+    
+    # We wrap it in a component so the animations and styles actually trigger
+    st.components.v1.html(f"""
+        <div style="background: {current_theme_opts.get('bg_color', '#0d1117')}; border-radius: 12px; border: 1px solid {current_theme_opts.get('border_color', '#30363d')}; overflow: hidden; position: relative; margin-bottom: 5px;">
+            <!-- Corner Accents -->
+            <div style="position: absolute; top: 0; left: 0; width: 10px; height: 10px; border-top: 2px solid {theme_color}; border-left: 2px solid {theme_color};"></div>
+            <div style="position: absolute; top: 0; right: 0; width: 10px; height: 10px; border-top: 2px solid {theme_color}; border-right: 2px solid {theme_color};"></div>
+            
+            <!-- Header Bar -->
+            <div style="color: {theme_color}; font-family: 'Courier New', monospace; font-size: 10px; font-weight: bold; letter-spacing: 1px; padding: 12px 15px 5px 15px; opacity: 0.8; display: flex; justify-content: space-between; border-bottom: 1px dashed {current_theme_opts.get('border_color', '#30363d')}44;">
+                <span>SYSTEM_ACTIVITY_MONITOR // {username.upper()}</span>
+                <span>STATUS: LIVE_FEED</span>
+            </div>
+            
+            <!-- Graph Area (Edge to Edge) -->
+            <div style="padding-top: 8px;">
+                {spark_svg}
+            </div>
+        </div>
+    """, height=180)
 
 with tab2:
     st.subheader("Top Languages")
