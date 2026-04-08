@@ -69,12 +69,6 @@ if not _settings.has_github_token:
         "Set `GITHUB_TOKEN` in `.env` or paste a token in the sidebar for live contribution data."
     )
 
-if not _settings.has_any_llm_key:
-    st.warning(
-        "No **OPENAI_API_KEY** or **GEMINI_API_KEY** in the environment: the AI Roast tab uses "
-        "built-in fallback lines only until you add a provider key."
-    )
-
 # --- Sidebar Controls ---
 with st.sidebar:
     st.header("1. Identify")
@@ -603,6 +597,12 @@ with tab7:
 # AI ROAST TAB
 with tab8:
     st.subheader("🔥 AI Profile Roast")
+
+    if not _settings.has_any_llm_key:
+        st.warning(
+            "No **OPENAI_API_KEY** or **GEMINI_API_KEY** in the environment: the AI Roast tab uses "
+            "built-in fallback lines only until you add a provider key."
+        )
 
     st.markdown("Let AI roast your GitHub profile with humor!")
     
