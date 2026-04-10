@@ -547,3 +547,32 @@ def get_date_range_from_option(date_option, custom_start=None, custom_end=None):
         }
     
     return None
+
+
+def fetch_sparkline_data(username, token=None):
+    """Fetches daily commit counts for the last 30 days."""
+    import requests
+    from datetime import datetime, timedelta
+    
+    # Initialize 30 days with 0
+    today = datetime.now()
+    dates = [(today - timedelta(days=i)).strftime('%Y-%m-%d') for i in range(30)]
+    daily_commits = {date: 0 for date in dates}
+    
+    headers = {"Authorization": f"token {token}"} if token else {}
+    url = f"https://api.github.com/users/{username}/events/public"
+    
+    try:
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            events = response.json()
+            for event in events:
+                if event['type'] == 'PushEvent':
+                    date = event['created_at'].split('T')[0]
+                    if date in daily_commits:
+                        daily_commits[date] += event['payload'].get('distinct_size', 0)
+    except:
+        pass
+    
+    # Return as a list of counts from oldest to newest
+    return [daily_commits[date] for date in reversed(dates)]
