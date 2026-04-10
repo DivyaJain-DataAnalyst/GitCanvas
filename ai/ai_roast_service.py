@@ -3,10 +3,10 @@ AI Service for generating GitHub profile roasts
 Supports both OpenAI and Google Gemini APIs
 """
 
-import os
 import random
 import requests
 from typing import Dict, Optional
+from config.settings import get_settings
 try:
     import google.generativeai as genai  # type: ignore
     _HAS_GENAI = True
@@ -20,8 +20,9 @@ from utils.logger import setup_logger
 logger = setup_logger(__name__)
 
 # Get API keys from environment
-OPENAI_API_KEY = os.getenv('OPENAI_API_KEY')
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
+_cfg = get_settings()
+OPENAI_API_KEY = _cfg.openai_api_key_value()
+GEMINI_API_KEY = _cfg.gemini_api_key_value()
 
 # Initialize APIs
 if GEMINI_API_KEY:

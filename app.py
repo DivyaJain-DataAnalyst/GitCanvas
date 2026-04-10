@@ -8,9 +8,11 @@ import json
 HEX_COLOR_REGEX = re.compile(r'^#[0-9A-Fa-f]{6}$')
 import streamlit.components.v1 as components
 from dotenv import load_dotenv
+from config.settings import get_settings
 from roast_widget_streamlit import render_roast_widget
 from generators import stats_card, lang_card, contrib_card, badge_generator, recent_activity_card, streak_card, repo_card, social_card, trophy_card
 from utils import github_api
+from utils.cache import clear_cache as clear_ttl_cache
 from themes.styles import THEMES, get_all_themes, CUSTOM_THEMES
 from generators.visual_elements import (
     emoji_element,
@@ -21,6 +23,10 @@ from generators.visual_elements import (
 
 # Load environment variables
 load_dotenv()
+# Streamlit reruns this script without restarting the process; drop LRU cache so
+# .env edits and new tokens are picked up, and avoid stale pydantic settings.
+get_settings.cache_clear()
+_settings = get_settings()
 
 st.set_page_config(page_title="GitCanvas Builder", page_icon="🛠️", layout="wide")
 
@@ -56,6 +62,12 @@ st.markdown("""
 
 st.title("GitCanvas: Profile Architect 🛠️")
 st.markdown("### Design your GitHub Stats. Copy the Code. Done.")
+
+if not _settings.has_github_token:
+    st.info(
+        "No **GITHUB_TOKEN** in the environment: GitHub data uses lower anonymous rate limits. "
+        "Set `GITHUB_TOKEN` in `.env` or paste a token in the sidebar for live contribution data."
+    )
 
 # --- Sidebar Controls ---
 with st.sidebar:
@@ -154,7 +166,11 @@ with st.sidebar:
             else:
                 st.error("Please enter a theme name")
 
-    github_token = st.text_input("GitHub Token (enter your token to view actual data)", type="password", help="Enter your GitHub token to fetch contribution data")
+    github_token = st.text_input(
+        "GitHub Token (enter your token to view actual data)",
+        type="password",
+        help="Paste a token here, or set GITHUB_TOKEN in a .env file in the project root. Sidebar value overrides .env.",
+    )
     
     # Animation toggle
     animations_enabled = st.checkbox("Enable Animations", value=False, help="Enable SVG animations for cards that support it")
@@ -163,22 +179,27 @@ with st.sidebar:
     output_format = st.radio("Output Format", ["Markdown", "HTML"], index=0, help="Choose between Markdown or HTML code format")
     
     if st.button("Refresh Data", use_container_width=True):
-
         st.cache_data.clear()
+        clear_ttl_cache("github_api")
+        get_settings.cache_clear()
         st.rerun()
         
     st.info("💡 Tip: Use the 'Icons & Badges' tab to add your tech stack icons!")
 
+# Resolve token for API + caches: sidebar wins, else GITHUB_TOKEN from .env / environment.
+_github_from_sidebar = (github_token or "").strip()
+effective_github_token = _github_from_sidebar or _settings.github_token_value()
+
 # Data Loading
 @st.cache_data(ttl=3600)  # Cache for 1 hour
-def load_data(user, token=None, _cache_version="v2"):  # Added version to force cache invalidation
+def load_data(user, token=None, _cache_version="v3"):  # bump when auth/cache semantics change
     d = github_api.get_live_github_data(user, token)
     if not d:
         st.warning("Using mock data (API limits).")
         d = github_api.get_mock_data(user)
     return d
 
-data = load_data(username if username else "torvalds", github_token if github_token else None)
+data = load_data(username if username else "torvalds", effective_github_token or None)
 
 # Ensure data is not None
 if data is None:
@@ -577,6 +598,12 @@ with tab7:
 with tab8:
     st.subheader("🔥 AI Profile Roast")
 
+    if not _settings.has_any_llm_key:
+        st.warning(
+            "No **OPENAI_API_KEY** or **GEMINI_API_KEY** in the environment: the AI Roast tab uses "
+            "built-in fallback lines only until you add a provider key."
+        )
+
     st.markdown("Let AI roast your GitHub profile with humor!")
     
     if username:
@@ -593,7 +620,9 @@ with tab9:
         st.caption("Theme: **{}**".format(selected_theme))
         try:
             # Pass selected_theme string
-            svg_bytes = recent_activity_card.draw_recent_activity_card({'username': username}, selected_theme, custom_colors, token=github_token)
+            svg_bytes = recent_activity_card.draw_recent_activity_card(
+                {"username": username}, selected_theme, custom_colors, token=effective_github_token
+            )
         except Exception as e:
             st.error(f"Error rendering recent activity: {e}")
             svg_bytes = recent_activity_card._render_svg_lines([f"Error: {e}"], THEMES.get(selected_theme, THEMES['Default']))
@@ -607,8 +636,8 @@ with tab9:
         if selected_theme != "Default": params.append(f"theme={selected_theme}")
         for k, v in custom_colors.items():
             params.append(f"{k}={v.replace('#', '')}")
-        if github_token:
-            params.append(f"token={github_token}")
+        if effective_github_token:
+            params.append(f"token={effective_github_token}")
 
         query_str = "&".join(params)
         if query_str: query_str = "?" + query_str

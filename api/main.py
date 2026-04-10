@@ -1,12 +1,28 @@
 import hashlib
-from fastapi import FastAPI, Response, Query, Request
+from contextlib import asynccontextmanager
+from typing import Optional
+from fastapi import FastAPI, Response, Request
 from fastapi.middleware.cors import CORSMiddleware
+from config.settings import get_settings
 from generators import stats_card, lang_card, contrib_card, recent_activity_card, trophy_card, streak_card, repo_card
 from utils import github_api
 from utils.cache import cache_svg_response, get_cache_stats, clear_cache
-from typing import Optional
+from utils.validators import (
+    validate_date,
+    validate_hex_color,
+    validate_limit,
+    validate_sort_by,
+    validate_theme,
+    validate_username,
+)
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    settings = get_settings()
+    settings.log_backend_warnings()
+    yield
+
+app = FastAPI(lifespan=lifespan)
 
 # Configure CORS middleware
 app.add_middleware(
