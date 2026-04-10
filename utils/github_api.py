@@ -37,7 +37,7 @@ def calculate_streak_data(contributions):
     Returns:
         Dict with 'current_streak', 'longest_streak', and 'total_contributions'
     """
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     
     if not contributions:
         return {
@@ -57,7 +57,7 @@ def calculate_streak_data(contributions):
     longest_streak = 0
     temp_streak = 0
     
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc).date()
     
     # Build a dict for quick lookup
     contrib_dict = {c['date']: c['count'] for c in sorted_contribs}
@@ -519,9 +519,9 @@ def get_date_range_from_option(date_option, custom_start=None, custom_end=None):
     Returns:
         Dict with 'start' and 'end' date strings, or None for all time
     """
-    from datetime import datetime, timedelta
+    from datetime import datetime, timedelta, timezone
     
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc).date()
     
     if date_option == 'all_time' or date_option == 'all':
         return None

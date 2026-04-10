@@ -3,7 +3,7 @@ import svgwrite
 import random
 import logging
 from themes.styles import THEMES
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from .svg_base import CSS_ANIMATIONS
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ def _latest_contribution_date(contributions):
         if not max_date or parsed > max_date:
             max_date = parsed
 
-    today = datetime.utcnow().date()
+    today = datetime.now(timezone.utc).date()
     if max_date and max_date > today:
         return today
     return max_date
@@ -1020,7 +1020,6 @@ def draw_contrib_card(data, theme_name="Default", custom_colors=None, date_range
                         opacity=opacity
                     ))
     elif original_theme_name == "Matrix":
-        import random
         from themes import matrix
 
         svg = matrix.render(data, theme)
