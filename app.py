@@ -63,11 +63,7 @@ st.markdown("""
 st.title("GitCanvas: Profile Architect 🛠️")
 st.markdown("### Design your GitHub Stats. Copy the Code. Done.")
 
-if not _settings.has_github_token:
-    st.info(
-        "No **GITHUB_TOKEN** in the environment: GitHub data uses lower anonymous rate limits. "
-        "Set `GITHUB_TOKEN` in `.env` or paste a token in the sidebar for live contribution data."
-    )
+
 
 # --- Sidebar Controls ---
 with st.sidebar:
@@ -201,6 +197,13 @@ def load_data(user, token=None, _cache_version="v3"):  # bump when auth/cache se
 
 data = load_data(username if username else "torvalds", effective_github_token or None)
 
+# Show token warning only if no token is available from ANY source (env, secrets, sidebar)
+if not effective_github_token:
+    st.info(
+        "No **GITHUB_TOKEN** found. GitHub data uses lower anonymous rate limits. "
+        "Set `GITHUB_TOKEN` in `.env`, Streamlit secrets, or paste a token in the sidebar."
+    )
+
 # Ensure data is not None
 if data is None:
     data = {}
@@ -278,7 +281,7 @@ def render_tab(svg_bytes, endpoint, username, selected_theme, custom_colors, hid
             const vb = svgEl.getAttribute('viewBox');
             let w = 800, h = 400;
             if (vb) {{
-                const parts = vb.split(/[\s,]+/);
+                const parts = vb.split(/[\\s,]+/);
                 w = parseFloat(parts[2]) || 800;
                 h = parseFloat(parts[3]) || 400;
             }}
@@ -382,34 +385,56 @@ with tab1:
     render_tab(svg_bytes, "stats", username, selected_theme, custom_colors, hide_params=show_ops, code_template=f"[![{username}'s Stats]({{url}})](https://github.com/{{username}})", output_format=output_format)
     
     # Prepare the SVG string from your generator
-    spark_data = github_api.fetch_sparkline_data(username, effective_github_token)
+    # Use real contribution data already loaded (last 30 days) - no extra API call needed
+    _contribs = data.get("contributions", [])
+    spark_data = [c.get("count", 0) for c in _contribs[-30:]] if _contribs else []
     theme_color = current_theme_opts.get("title_color", "#58a6ff")
     spark_svg = sparkline.draw_sparkline(spark_data, theme_color)
 
     st.markdown("---")
-
-    # RENDER THIS WAY (Crucial)
     st.subheader("30-Day Activity Sparkline")
-    
-    # We wrap it in a component so the animations and styles actually trigger
-    st.components.v1.html(f"""
-        <div style="background: {current_theme_opts.get('bg_color', '#0d1117')}; border-radius: 12px; border: 1px solid {current_theme_opts.get('border_color', '#30363d')}; overflow: hidden; position: relative; margin-bottom: 5px;">
-            <!-- Corner Accents -->
-            <div style="position: absolute; top: 0; left: 0; width: 10px; height: 10px; border-top: 2px solid {theme_color}; border-left: 2px solid {theme_color};"></div>
-            <div style="position: absolute; top: 0; right: 0; width: 10px; height: 10px; border-top: 2px solid {theme_color}; border-right: 2px solid {theme_color};"></div>
-            
-            <!-- Header Bar -->
-            <div style="color: {theme_color}; font-family: 'Courier New', monospace; font-size: 10px; font-weight: bold; letter-spacing: 1px; padding: 12px 15px 5px 15px; opacity: 0.8; display: flex; justify-content: space-between; border-bottom: 1px dashed {current_theme_opts.get('border_color', '#30363d')}44;">
-                <span>SYSTEM_ACTIVITY_MONITOR // {username.upper()}</span>
-                <span>STATUS: LIVE_FEED</span>
+
+    spark_col1, spark_col2 = st.columns([1.5, 1])
+
+    with spark_col1:
+        # We wrap it in a component so the animations and styles actually trigger
+        st.components.v1.html(f"""
+            <div style="background: {current_theme_opts.get('bg_color', '#0d1117')}; border-radius: 12px; border: 1px solid {current_theme_opts.get('border_color', '#30363d')}; overflow: hidden; position: relative; margin-bottom: 5px;">
+                <!-- Corner Accents -->
+                <div style="position: absolute; top: 0; left: 0; width: 10px; height: 10px; border-top: 2px solid {theme_color}; border-left: 2px solid {theme_color};"></div>
+                <div style="position: absolute; top: 0; right: 0; width: 10px; height: 10px; border-top: 2px solid {theme_color}; border-right: 2px solid {theme_color};"></div>
+                
+                <!-- Header Bar -->
+                <div style="color: {theme_color}; font-family: 'Courier New', monospace; font-size: 10px; font-weight: bold; letter-spacing: 1px; padding: 12px 15px 5px 15px; opacity: 0.8; display: flex; justify-content: space-between; border-bottom: 1px dashed {current_theme_opts.get('border_color', '#30363d')}44;">
+                    <span>SYSTEM_ACTIVITY_MONITOR // {username.upper()}</span>
+                    <span>STATUS: LIVE_FEED</span>
+                </div>
+                
+                <!-- Graph Area (Edge to Edge) -->
+                <div style="padding-top: 8px;">
+                    {spark_svg}
+                </div>
             </div>
-            
-            <!-- Graph Area (Edge to Edge) -->
-            <div style="padding-top: 8px;">
-                {spark_svg}
-            </div>
-        </div>
-    """, height=180)
+        """, height=180)
+
+    with spark_col2:
+        st.subheader("Integration")
+        _spark_params = []
+        if selected_theme != "Default":
+            _spark_params.append(f"theme={selected_theme}")
+        for k, v in custom_colors.items():
+            _spark_params.append(f"{k}={v.replace('#', '')}")
+        _spark_qs = ("?" + "&".join(_spark_params)) if _spark_params else ""
+        _spark_url = f"https://gitcanvas-api.vercel.app/api/sparkline{_spark_qs}&username={username}"
+
+        if output_format == "HTML":
+            _spark_code = f'<img src="{_spark_url}" alt="30-Day Activity Sparkline"/>'
+        else:
+            _spark_code = f"![30-Day Activity Sparkline]({_spark_url})"
+
+        _code_label = "HTML Code" if output_format == "HTML" else "Markdown Code"
+        show_code_area(_spark_code, label=_code_label)
+
 
 with tab2:
     st.subheader("Top Languages")
@@ -465,8 +490,8 @@ with tab4:
     elif selected_theme == "Glass": st.caption("💎 GlassMorphism: Translucent Glass based theme card.")
 
     # Date Range Selector
-    from datetime import datetime, timedelta
-    today = datetime.utcnow().date()
+    from datetime import datetime, timedelta, timezone
+    today = datetime.now(timezone.utc).date()
     
     col_date1, col_date2 = st.columns([1, 1])
     with col_date1:
