@@ -1,6 +1,6 @@
-# GitCanvas Contributor Guide for ACM Sourcery
+# GitCanvas Contributor Guide for for Open Source Events
 
-This document is tailored for contributors participating in the open source event Sourcery by ACM IGDTUW.
+This document is tailored for contributors participating in all open source events: _Nexus Spring of Code, ACM Sourcery and Apertre3.0._
 
 [![GitCanvas - Issues](https://img.shields.io/badge/GitCanvas-Issues-9113ff?style=for-the-badge)](https://github.com/devanshi14malhotra/GitCanvas/issues)
 
@@ -208,13 +208,14 @@ streamlit run app.py
 
 ---
 
-## 7. Sourcery Event Context
+## 7. Open Source Event Context
 
-This repository is participating in Sourcery by ACM IGDTUW. Contributors are encouraged to pick beginner-friendly issues first, then move to generator, theme, and API enhancements.
+Currently, this repository is a part of the _**Nexus Spring of Code** Open Source Event_. This repository has participated in _**Sourcery** by ACM IGDTUW_ and _**Apertre3.0** by Resourcio Community_. Contributors are encouraged to start with beginner-friendly issues, then move into recommendation logic, mood flows, and UI refinements.
+
 
 If you are new to the project, start with one of the Good First Issues above and open a draft PR early for feedback.
 
-Happy building and all the best for Sourcery.
+Happy building and all the best!!!
 
 ``` bash
  If you like this project, please consider giving the repository a ⭐ STAR ⭐.
