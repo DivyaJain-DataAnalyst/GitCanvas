@@ -4,9 +4,9 @@
 GitCanvas is a powerful Streamlit application that transforms your GitHub contribution history into stunning visual art. 
 Say goodbye to boring green squares... visualize your coding journey with style, create your own themes, and make you GitHub truly personal!
 
-## ACM Sourcery Navigation
+## Open Source Events Navigation
 
-[![ACM Sourcery - Contributor Guide](https://img.shields.io/badge/ACM%20Sourcery-Contributor%20Guide-1D4EF8?style=for-the-badge)](PROJECT_DETAILS.md)
+[![Nexus Spring of Code- Contributor Guide](https://img.shields.io/badge/Nexus%20Spring%20Of%20Code-Contributor%20Guide-1D4ED8?style=for-the-badge)](Open-Source-Event-Guidelines.md)
 
 ## ✨ Features
 
