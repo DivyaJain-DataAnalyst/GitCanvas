@@ -14,6 +14,7 @@ from generators import stats_card, lang_card, contrib_card, badge_generator, rec
 from utils import github_api
 from utils.cache import clear_cache as clear_ttl_cache
 from themes.styles import THEMES, get_all_themes, CUSTOM_THEMES
+from utils.error_card import draw_error_card
 from generators.visual_elements import (
     emoji_element,
     gif_element,
@@ -191,8 +192,7 @@ effective_github_token = _github_from_sidebar or _settings.github_token_value()
 def load_data(user, token=None, _cache_version="v3"):  # bump when auth/cache semantics change
     d = github_api.get_live_github_data(user, token)
     if not d:
-        st.warning("Using mock data (API limits).")
-        d = github_api.get_mock_data(user)
+        return None   # Signal the caller — don't silently use mock data
     return d
 
 data = load_data(username if username else "torvalds", effective_github_token or None)
@@ -206,7 +206,23 @@ if not effective_github_token:
 
 # Ensure data is not None
 if data is None:
-    data = {}
+    if effective_github_token:
+        _err_type = "invalid_user"
+        _err_type_msg = "Username not found — check spelling."
+    else:
+        _err_type = "rate_limit"
+        _err_type_msg = "GitHub API rate limit reached — add a `GITHUB_TOKEN` in the sidebar."
+
+    _err_svg = draw_error_card(_err_type, username=username if username else "user")
+
+    st.error(f"⚠️ **Could not load GitHub data.** {_err_type_msg}")
+    st.markdown(
+        f'<div style="max-width:450px; margin-top:12px;">{_err_svg}</div>',
+        unsafe_allow_html=True
+    )
+    st.info("💡 Add a `GITHUB_TOKEN` in the sidebar to fix rate limit issues.")
+    st.stop()
+
 
 # Ensure backward compatibility with old cached data
 if "top_repos" not in data:
