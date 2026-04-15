@@ -1,10 +1,10 @@
 import hashlib
 from contextlib import asynccontextmanager
 from typing import Optional
-from fastapi import FastAPI, Response, Request
+from fastapi import FastAPI, Response, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from config.settings import get_settings
-from generators import stats_card, lang_card, contrib_card, recent_activity_card, trophy_card, streak_card, repo_card
+from generators import stats_card, lang_card, contrib_card, recent_activity_card, trophy_card, streak_card, repo_card, social_card, badge_generator
 from utils import github_api
 from utils.cache import cache_svg_response, get_cache_stats, clear_cache
 from utils.validators import (
@@ -60,6 +60,25 @@ def svg_response(svg_content: str, request: Request):
             "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; img-src data:",
             "X-Content-Type-Options": "nosniff",
             "X-Frame-Options": "SAMEORIGIN"
+        }
+    )
+
+
+def cached_text_response(content: str, request: Request, media_type: str = "text/plain; charset=utf-8"):
+    """Return text response with ETag and CDN-friendly cache headers."""
+    etag = hashlib.md5(content.encode("utf-8")).hexdigest()
+
+    if request.headers.get("if-none-match") == etag:
+        return Response(status_code=304)
+
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            "Cache-Control": "public, max-age=14400, s-maxage=14400",
+            "ETag": etag,
+            "Vary": "Accept-Encoding",
+            "X-Content-Type-Options": "nosniff"
         }
     )
 
@@ -305,6 +324,165 @@ async def get_repos(
     custom_colors = parse_colors(bg_color, title_color, text_color, border_color)
     svg_content = repo_card.draw_repo_card(data, theme, custom_colors=custom_colors, sort_by=sort_by, limit=limit)
     return svg_response(svg_content, request)
+
+
+@app.get("/api/social_card")
+async def get_social_card(
+    request: Request,
+    theme: str = "Default",
+    platforms: Optional[str] = None,
+    icon_color: Optional[str] = None,
+    twitter: Optional[str] = None,
+    linkedin: Optional[str] = None,
+    website: Optional[str] = None,
+    email: Optional[str] = None,
+    youtube: Optional[str] = None,
+    bg_color: Optional[str] = None,
+    title_color: Optional[str] = None,
+    text_color: Optional[str] = None,
+    border_color: Optional[str] = None
+):
+    theme = validate_theme(theme)
+    custom_colors = parse_colors(bg_color, title_color, text_color, border_color)
+
+    if icon_color:
+        icon_color = validate_hex_color(icon_color)
+
+    social_data = {
+        "twitter": twitter,
+        "linkedin": linkedin,
+        "website": website,
+        "email": email,
+        "youtube": youtube,
+    }
+
+    selected_platforms = None
+    if platforms:
+        selected_platforms = [p.strip().lower() for p in platforms.split(",") if p.strip()]
+        invalid_platforms = [
+            p for p in selected_platforms
+            if p not in social_card.SOCIAL_PLATFORMS
+        ]
+        if invalid_platforms:
+            valid = ", ".join(sorted(social_card.SOCIAL_PLATFORMS.keys()))
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid platforms: {', '.join(invalid_platforms)}. Valid values: {valid}"
+            )
+
+    svg_content = generate_cached_svg(
+        social_card.draw_social_card,
+        social_data,
+        theme,
+        custom_colors=custom_colors,
+        selected_platforms=selected_platforms,
+        icon_color=icon_color,
+    )
+    return svg_response(svg_content, request)
+
+
+@app.get("/api/badges")
+@app.get("/api/badge_generator")
+async def get_badges(
+    request: Request,
+    tools: str,
+    style: str = "for-the-badge",
+    match_theme_color: bool = False,
+    theme: str = "Default",
+    format: str = "markdown",
+    link: Optional[str] = None,
+):
+    """
+    Generate tech badge markdown (or JSON payload) from comma-separated tool names.
+
+    Example:
+    /api/badges?tools=Python,FastAPI,Docker&style=flat-square
+    """
+    valid_styles = {"for-the-badge", "flat", "flat-square", "plastic", "social"}
+    if style not in valid_styles:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid style. Choose from: {', '.join(sorted(valid_styles))}"
+        )
+
+    output_format = format.lower().strip()
+    if output_format not in {"markdown", "json"}:
+        raise HTTPException(status_code=400, detail="Invalid format. Use 'markdown' or 'json'.")
+
+    if match_theme_color:
+        theme = validate_theme(theme)
+
+    requested_tools = [tool.strip() for tool in tools.split(",") if tool.strip()]
+    if not requested_tools:
+        raise HTTPException(status_code=400, detail="At least one tool is required.")
+
+    # Build a case-insensitive lookup of all supported tools.
+    tool_lookup = {}
+    for category, category_tools in badge_generator.TECH_STACK.items():
+        for tool_name, config in category_tools.items():
+            tool_lookup[tool_name.lower()] = {
+                "name": tool_name,
+                "category": category,
+                "config": config,
+            }
+
+    unknown_tools = [tool for tool in requested_tools if tool.lower() not in tool_lookup]
+    if unknown_tools:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported tools: {', '.join(unknown_tools)}"
+        )
+
+    title_color = None
+    if match_theme_color:
+        from themes.styles import THEMES
+        title_color = THEMES.get(theme, THEMES["Default"])["title_color"].replace("#", "")
+
+    badge_items = []
+    markdown_parts = []
+
+    for tool in requested_tools:
+        tool_meta = tool_lookup[tool.lower()]
+        tool_name = tool_meta["name"]
+        tool_config = tool_meta["config"]
+        color = title_color or tool_config["color"]
+
+        badge_url = badge_generator.generate_badge_url(
+            tool_name,
+            color,
+            tool_config["logo"],
+            style=style,
+        )
+        markdown = badge_generator.generate_markdown(tool_name, badge_url, link=link)
+
+        badge_items.append(
+            {
+                "tool": tool_name,
+                "category": tool_meta["category"],
+                "badge_url": badge_url,
+                "markdown": markdown,
+            }
+        )
+        markdown_parts.append(markdown)
+
+    markdown_output = " ".join(markdown_parts)
+
+    if output_format == "json":
+        import json
+
+        json_content = json.dumps(
+            {
+                "style": style,
+                "match_theme_color": match_theme_color,
+                "theme": theme,
+                "tools": badge_items,
+                "markdown": markdown_output,
+            },
+            separators=(",", ":"),
+        )
+        return cached_text_response(json_content, request, media_type="application/json")
+
+    return cached_text_response(markdown_output, request)
 
 # Cache management endpoints
 
