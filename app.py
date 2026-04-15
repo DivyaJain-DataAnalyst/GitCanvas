@@ -102,21 +102,35 @@ with st.sidebar:
     # Apply filters to theme_options
     def matches_filter(name, props):
         theme_tags = props.get("tags", [])
-        search_match = not theme_search or theme_search.lower() in name.lower() or any(theme_search.lower() in tag for tag in theme_tags)
+        search_match = not theme_search or theme_search.lower() in name.lower() or any(theme_search.lower() in t.lower() for t in theme_tags)
+        
         if not selected_tags:
-            tag_match = True
-        elif not theme_tags:
             tag_match = True
         else:
             tag_match = any(tag in theme_tags for tag in selected_tags)
+            
         return search_match and tag_match
 
     filtered_theme_options = [
-        name for name, props in all_themes.items()
-        if matches_filter(name, props)
-    ] or theme_options  # fallback to all if nothing matches
+        name for name in theme_options
+        if name in all_themes and matches_filter(name, all_themes[name])
+    ]
+    if not filtered_theme_options:
+        filtered_theme_options = ["Default"]
 
-    selected_theme = st.selectbox("Select Theme", filtered_theme_options)
+    # Maintain selection synchronization
+    if "gallery_selected_theme" in st.session_state:
+        target_theme = st.session_state.pop("gallery_selected_theme")
+        if target_theme not in filtered_theme_options:
+            filtered_theme_options.append(target_theme)
+        st.session_state["current_theme_selection"] = target_theme
+
+    try:
+        default_idx = filtered_theme_options.index(st.session_state.get("current_theme_selection", "Default"))
+    except ValueError:
+        default_idx = 0
+
+    selected_theme = st.selectbox("Select Theme", filtered_theme_options, index=default_idx, key="current_theme_selection")
     
     # Customization Expander
     # Ensure custom_colors exists even if the expander isn't opened
@@ -256,10 +270,6 @@ data.setdefault("created_at", "")
 data.setdefault("top_languages", [])
 data.setdefault("contributions", [])
 
-
-# ── Honour theme picked from the Gallery (Issue #162) ────────────────────
-if "gallery_selected_theme" in st.session_state:
-    selected_theme = st.session_state.pop("gallery_selected_theme")
 
 # Apply custom colors to current theme for python logic
 current_theme_opts = all_themes.get(selected_theme, all_themes["Default"]).copy()
