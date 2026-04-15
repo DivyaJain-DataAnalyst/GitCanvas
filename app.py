@@ -222,6 +222,9 @@ with st.sidebar:
     # Output format selector
     output_format = st.radio("Output Format", ["Markdown", "HTML"], index=0, help="Choose between Markdown or HTML code format")
     
+    # Dev/Test mock data toggle
+    use_mock_data = st.checkbox("Use Mock Data on API Failure", value=False, help="Dev/Test mode: fallback to mock data if GitHub API hits rate limits or errors.")
+    
     if st.button("Refresh Data", use_container_width=True):
         st.cache_data.clear()
         clear_ttl_cache("github_api")
@@ -236,14 +239,17 @@ effective_github_token = _github_from_sidebar or _settings.github_token_value()
 
 # Data Loading
 @st.cache_data(ttl=3600)  # Cache for 1 hour
-def load_data(user, token=None, _cache_version="v3"):  # bump when auth/cache semantics change
+def load_data(user, token=None, use_mock=False, _cache_version="v3"):  # bump when auth/cache semantics change
     d = github_api.get_live_github_data(user, token)
     if not d:
-        st.warning("Using mock data (API limits).")
-        d = github_api.get_mock_data(user)
+        if use_mock:
+            st.warning("API limits/errors reached. Using mock data (Dev/Test mode).")
+            d = github_api.get_mock_data(user)
+        else:
+            return None
     return d
 
-data = load_data(username if username else "torvalds", effective_github_token or None)
+data = load_data(username if username else "torvalds", effective_github_token or None, use_mock_data)
 
 # Show token warning only if no token is available from ANY source (env, secrets, sidebar)
 if not effective_github_token:
