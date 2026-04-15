@@ -70,7 +70,29 @@ st.markdown("### Design your GitHub Stats. Copy the Code. Done.")
 # --- Sidebar Controls ---
 with st.sidebar:
     st.header("1. Identify")
-    username = st.text_input("GitHub Username", value="torvalds")
+     # Wrapping in st.form prevents API re-fetch on every keystroke.
+    # Data only loads when user clicks "Load Profile" or presses Enter.
+    with st.form(key="username_form"):
+        username = st.text_input(
+            "GitHub Username",
+            value=st.session_state.get("last_username", "torvalds"),
+            placeholder="e.g. torvalds",
+            help="Press Enter or click Load Profile to fetch data"
+        )
+        submitted = st.form_submit_button(
+            "🔍 Load Profile",
+            use_container_width=True,
+            type="primary"
+        )
+
+    # Only update the active username when form is submitted
+    if submitted:
+        st.session_state["last_username"] = username
+
+    # Use last confirmed username — avoids mid-typing API calls
+    username = st.session_state.get("last_username", "torvalds")
+    # ── End debounce fix ─────────────────────────────────────────────────
+
     
     st.header("2. Global Style")
     
