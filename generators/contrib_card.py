@@ -187,6 +187,222 @@ def _add_timeline_labels(dwg, weeks, cols, rows, start_x, start_y, box_size, gap
             font_family=theme["font_family"],
             opacity=0.8
         ))
+def draw_calendar_heatmap_card(
+    data,
+    theme_name="Default",
+    custom_colors=None,
+    date_range=None,
+    animations_enabled=True,
+    level_control="auto",
+    level_colors=None
+):
+    """
+    Generates an enhanced yearly Calendar Heatmap Card (365 days).
+
+    level_control: "none" | "low" | "medium" | "high" | "auto"
+    level_colors:  dict {0..4: color} or list of 5 colors
+    """
+    theme = THEMES.get(theme_name, THEMES["Default"]).copy()
+    if custom_colors:
+        theme.update(custom_colors)
+
+    # ── Layout constants ────────────────────────────────────────────────────
+    CELL      = 11   # cell size (px)
+    GAP       = 2    # gap between cells
+    STEP      = CELL + GAP
+    COLS      = 53   # weeks
+    ROWS      = 7    # days per week
+    PAD_LEFT  = 32   # room for Mon/Wed/Fri labels
+    PAD_TOP   = 52   # room for title + month labels
+    PAD_BOT   = 28   # room for legend
+    PAD_RIGHT = 16
+
+    grid_w = COLS * STEP - GAP
+    grid_h = ROWS * STEP - GAP
+    width  = PAD_LEFT + grid_w + PAD_RIGHT
+    height = PAD_TOP  + grid_h + PAD_BOT
+
+    GRID_X = PAD_LEFT
+    GRID_Y = PAD_TOP
+
+    dwg = svgwrite.Drawing(size=("100%", "100%"), viewBox=f"0 0 {width} {height}")
+
+    # Background
+    dwg.add(dwg.rect(insert=(0, 0), size=("100%", "100%"), rx=10, ry=10,
+                     fill=theme["bg_color"], stroke=theme["border_color"], stroke_width=1.5))
+
+    # Title
+    username = data.get("username", "Unknown")
+    total_commits = data.get("total_commits", 0)
+    dwg.add(dwg.text(
+        f"{username}'s Contribution Calendar",
+        insert=(PAD_LEFT, 22),
+        fill=theme["title_color"],
+        font_size=13,
+        font_family=theme.get("font_family", "Arial"),
+        font_weight="bold"
+    ))
+    dwg.add(dwg.text(
+        f"{total_commits:,} contributions in the last year",
+        insert=(PAD_LEFT, 36),
+        fill=theme["text_color"],
+        font_size=9,
+        font_family=theme.get("font_family", "Arial"),
+        opacity=0.7
+    ))
+
+    # ── Contribution data ────────────────────────────────────────────────────
+    contributions = data.get("contributions", [])
+    if date_range:
+        from utils.github_api import filter_contributions_by_date
+        contributions = filter_contributions_by_date(contributions, date_range)
+
+    date_counts = {}
+    for item in contributions:
+        d = item.get("date")
+        if not isinstance(d, str) or not d.strip():
+            continue
+        try:
+            date_counts[date.fromisoformat(d)] = item.get("count", 0)
+        except ValueError:
+            continue
+
+    today = datetime.now(timezone.utc).date()
+
+    if date_range and date_range.get("start"):
+        try:
+            start_date = date.fromisoformat(date_range["start"])
+        except Exception:
+            start_date = today - timedelta(days=364)
+    else:
+        start_date = today - timedelta(days=364)
+
+    # Align start_date to the Sunday of its week (GitHub style)
+    start_date -= timedelta(days=(start_date.weekday() + 1) % 7)
+    end_date = start_date + timedelta(days=COLS * 7 - 1)
+
+    max_count = max(date_counts.values(), default=1) or 1
+
+    # ── Color palette ────────────────────────────────────────────────────────
+    bg = theme["bg_color"]
+    is_light_bg = bg.startswith("#f") or bg.startswith("#e") or bg in ("#ffffff", "#fff")
+    default_empty = "#ebedf0" if is_light_bg else "#161b22"
+    default_palette = [
+        default_empty,
+        "#0e4429", "#006d32", "#26a641", "#39d353"
+    ]
+
+    colors = {}
+    if level_colors:
+        if isinstance(level_colors, dict):
+            colors = {int(k): v for k, v in level_colors.items()}
+        elif isinstance(level_colors, (list, tuple)) and len(level_colors) >= 5:
+            colors = {i: level_colors[i] for i in range(5)}
+    if not colors:
+        colors = {i: default_palette[i] for i in range(5)}
+
+    if level_control == "none":
+        colors = {i: colors[0] for i in range(5)}
+    elif level_control == "low":
+        colors = {0: colors[0], 1: colors[4], 2: colors[4], 3: colors[4], 4: colors[4]}
+    elif level_control == "medium":
+        colors = {0: colors[0], 1: colors[0], 2: colors[2], 3: colors[4], 4: colors[4]}
+
+    def _level(count):
+        if count <= 0:
+            return 0
+        if level_control == "none":
+            return 0
+        if level_control == "low":
+            return 4
+        ratio = count / max_count
+        if level_control == "medium":
+            return 4 if ratio > 0.5 else 2
+        # high / auto
+        if ratio <= 0.25: return 1
+        if ratio <= 0.5:  return 2
+        if ratio <= 0.75: return 3
+        return 4
+
+    # ── Month labels (above grid) ────────────────────────────────────────────
+    MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun",
+                   "Jul","Aug","Sep","Oct","Nov","Dec"]
+    last_month = -1
+    for col in range(COLS):
+        week_start = start_date + timedelta(days=col * 7)
+        if week_start.month != last_month:
+            mx = GRID_X + col * STEP
+            dwg.add(dwg.text(
+                MONTH_NAMES[week_start.month - 1],
+                insert=(mx, GRID_Y - 6),
+                fill=theme["text_color"],
+                font_size=9,
+                font_family=theme.get("font_family", "Arial"),
+                opacity=0.75
+            ))
+            last_month = week_start.month
+
+    # ── Day-of-week labels (left of grid) ────────────────────────────────────
+    for row, label in ((1, "Mon"), (3, "Wed"), (5, "Fri")):
+        dwg.add(dwg.text(
+            label,
+            insert=(GRID_X - 4, GRID_Y + row * STEP + CELL - 1),
+            fill=theme["text_color"],
+            font_size=8,
+            font_family=theme.get("font_family", "Arial"),
+            text_anchor="end",
+            opacity=0.65
+        ))
+
+    # ── Grid cells ───────────────────────────────────────────────────────────
+    for col in range(COLS):
+        for row in range(ROWS):
+            current = start_date + timedelta(days=col * 7 + row)
+            if current > today:
+                # future cell — draw faint outline only
+                dwg.add(dwg.rect(
+                    insert=(GRID_X + col * STEP, GRID_Y + row * STEP),
+                    size=(CELL, CELL),
+                    fill="none",
+                    stroke=theme["border_color"],
+                    stroke_width=0.5,
+                    rx=2, ry=2,
+                    opacity=0.3
+                ))
+                continue
+            count = date_counts.get(current, 0)
+            lvl   = _level(count)
+            dwg.add(dwg.rect(
+                insert=(GRID_X + col * STEP, GRID_Y + row * STEP),
+                size=(CELL, CELL),
+                fill=colors[lvl],
+                rx=2, ry=2
+            ))
+
+    # ── Legend ───────────────────────────────────────────────────────────────
+    legend_y  = height - 10
+    legend_x0 = width - PAD_RIGHT - (5 * (CELL + 3)) - 50
+
+    dwg.add(dwg.text("Less",
+        insert=(legend_x0, legend_y),
+        fill=theme["text_color"], font_size=9,
+        font_family=theme.get("font_family", "Arial"), opacity=0.6))
+
+    for i in range(5):
+        dwg.add(dwg.rect(
+            insert=(legend_x0 + 28 + i * (CELL + 3), legend_y - CELL + 1),
+            size=(CELL, CELL),
+            fill=colors[i], rx=2, ry=2
+        ))
+
+    dwg.add(dwg.text("More",
+        insert=(legend_x0 + 28 + 5 * (CELL + 3) + 3, legend_y),
+        fill=theme["text_color"], font_size=9,
+        font_family=theme.get("font_family", "Arial"), opacity=0.6))
+
+    return dwg.tostring()
+
+
 def draw_contrib_card(data, theme_name="Default", custom_colors=None, date_range=None, animations_enabled=True):
     """
     Generates the Contribution Graph Card SVG.

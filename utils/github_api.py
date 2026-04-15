@@ -111,12 +111,18 @@ def fetch_github_graphql(username, token=None):
     if not token:
         return None
 
+    from datetime import datetime, timedelta, timezone as _tz
+    _today = datetime.now(_tz.utc)
+    _from  = (_today - timedelta(days=365)).strftime("%Y-%m-%dT00:00:00Z")
+    _to    = _today.strftime("%Y-%m-%dT23:59:59Z")
+
     query = """
-    query ($login: String!) {
+    query ($login: String!, $from: DateTime!, $to: DateTime!) {
       user(login: $login) {
-        contributionsCollection {
+        contributionsCollection(from: $from, to: $to) {
           totalCommitContributions
           contributionCalendar {
+            totalContributions
             weeks {
               contributionDays {
                 date
@@ -136,7 +142,7 @@ def fetch_github_graphql(username, token=None):
     try:
         resp = requests.post(
             GITHUB_GRAPHQL_URL,
-            json={"query": query, "variables": {"login": username}},
+            json={"query": query, "variables": {"login": username, "from": _from, "to": _to}},
             headers=headers,
             timeout=10
         )
@@ -213,6 +219,10 @@ def parse_graphql_contributions(graphql_json):
                 contribution_weeks.append(week_days)
 
         total_commits = safe_get_nested_value(
+            graphql_json,
+            ["data", "user", "contributionsCollection", "contributionCalendar", "totalContributions"],
+            0
+        ) or safe_get_nested_value(
             graphql_json,
             ["data", "user", "contributionsCollection", "totalCommitContributions"],
             0
