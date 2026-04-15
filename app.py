@@ -423,9 +423,11 @@ with tab1:
     show_followers = c4.checkbox("Followers", True)
 
     show_ops = {"stars": show_stars, "commits": show_commits, "repos": show_repos, "followers": show_followers}
+        # Compact layout toggle (Issue #164)
+    compact_layout = st.checkbox("📐 Compact Layout", value=False, help="Slim 300x120 card — fit multiple cards in one README row")
 
     # Pass selected_theme string to support theme-specific logic (e.g. Glass)
-    svg_bytes = stats_card.draw_stats_card(data, selected_theme, show_ops, custom_colors, animations_enabled)
+    svg_bytes = stats_card.draw_stats_card(data, selected_theme, show_ops, custom_colors, animations_enabled, compact=compact_layout)
     render_tab(svg_bytes, "stats", username, selected_theme, custom_colors, hide_params=show_ops, code_template=f"[![{username}'s Stats]({{url}})](https://github.com/{{username}})", output_format=output_format)
     
     # Prepare the SVG string from your generator
@@ -520,8 +522,8 @@ with tab3:
     if exclude_forks and "top_repos" in filtered_data:
         filtered_data["top_repos"] = [r for r in filtered_data["top_repos"] if not r.get("is_fork", False)]
     
-    # Generate card - Pass selected_theme string
-    svg_bytes = repo_card.draw_repo_card(filtered_data, selected_theme, custom_colors, sort_by=sort_by, limit=repo_limit)
+    compact_repo = st.checkbox("📐 Compact Layout", value=False, help="Slim 300px card — fit multiple cards in one README row", key="compact_repo")
+    svg_bytes = repo_card.draw_repo_card(filtered_data, selected_theme, custom_colors, sort_by=sort_by, limit=repo_limit, compact=compact_repo)
     render_tab(svg_bytes, "repos", username, selected_theme, custom_colors, code_template="![Top Repos]({url})", output_format=output_format)
 
 with tab4:
