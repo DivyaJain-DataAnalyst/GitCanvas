@@ -82,7 +82,40 @@ with st.sidebar:
     # Combine with custom themes at the end
     theme_options = predefined_themes + custom_theme_names
     
-    selected_theme = st.selectbox("Select Theme", theme_options)
+    # ── Theme Search & Filter (Issue #163) ───────────────────────────────────
+    st.markdown("**Filter Themes**")
+
+    # Search bar
+    theme_search = st.text_input("🔍 Search themes", placeholder="e.g. dark, gaming...", key="theme_search")
+
+    # Collect all unique tags across themes
+    all_tags = sorted(set(
+        tag
+        for t in all_themes.values()
+        for tag in t.get("tags", [])
+    ))
+
+    # Filter buttons (pills)
+    selected_tags = st.pills("Filter by tag", options=all_tags, selection_mode="multi", key="theme_tags")
+
+    # Apply filters to theme_options
+    def matches_filter(name, props):
+        theme_tags = props.get("tags", [])
+        search_match = not theme_search or theme_search.lower() in name.lower() or any(theme_search.lower() in tag for tag in theme_tags)
+        if not selected_tags:
+            tag_match = True
+        elif not theme_tags:
+            tag_match = True
+        else:
+            tag_match = any(tag in theme_tags for tag in selected_tags)
+        return search_match and tag_match
+
+    filtered_theme_options = [
+        name for name, props in all_themes.items()
+        if matches_filter(name, props)
+    ] or theme_options  # fallback to all if nothing matches
+
+    selected_theme = st.selectbox("Select Theme", filtered_theme_options)
     
     # Customization Expander
     # Ensure custom_colors exists even if the expander isn't opened
