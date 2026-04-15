@@ -5,15 +5,6 @@ import svgwrite
 
 
 def draw_error_card(error_type: str = "rate_limit", username: str = "user", message: str = "") -> str:
-    """
-    Returns a themed SVG card explaining why real data could not be loaded.
-
-    error_type options:
-        "rate_limit"   — GitHub API rate limit hit
-        "invalid_user" — Username does not exist
-        "unknown"      — Any other failure
-    """
-
     WIDTH, HEIGHT = 450, 160
 
     config = {
@@ -106,7 +97,7 @@ def draw_error_card(error_type: str = "rate_limit", username: str = "user", mess
                 opacity=0.9
             ))
 
-    # Footer hint
+    # Footer
     dwg.add(dwg.text(
         "GitCanvas — gitcanvas-dm.streamlit.app",
         insert=(WIDTH - 20, HEIGHT - 12),
