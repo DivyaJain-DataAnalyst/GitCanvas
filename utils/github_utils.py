@@ -7,6 +7,7 @@ from typing import Dict, List, Optional
 from collections import Counter
 
 from utils.logger import setup_logger
+from datetime import datetime
 
 logger = setup_logger(__name__)
 
@@ -191,6 +192,60 @@ def fetch_github_stats_detailed(username: str, github_token: Optional[str] = Non
     except Exception as e:
         logger.error(f"Error with GraphQL query: {e}")
         return fetch_github_stats(username)  # Fallback
+
+
+def get_rate_limit_status(token: str = None) -> dict:
+    """
+    Fetch current GitHub API rate limit status.
+    Works with or without token.
+    """
+    headers = {}
+    if token:
+        headers["Authorization"] = f"token {token}"
+
+    try:
+        # Use the dedicated rate limit endpoint (doesn't count against your limit)
+        url = "https://api.github.com/rate_limit"
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            core = data.get("resources", {}).get("core", {})
+            
+            remaining = core.get("remaining", 0)
+            limit = core.get("limit", 60)
+            reset_timestamp = core.get("reset", 0)
+            
+            # Calculate time until reset
+            if reset_timestamp:
+                reset_time = datetime.fromtimestamp(reset_timestamp)
+                minutes_left = max(0, int((reset_time - datetime.now()).total_seconds() / 60))
+            else:
+                minutes_left = 0
+
+            # Determine status color
+            if remaining > limit * 0.7:
+                status_color = "🟢"   # Good
+                status_text = "Good"
+            elif remaining > limit * 0.3:
+                status_color = "🟠"   # Warning
+                status_text = "Warning"
+            else:
+                status_color = "🔴"   # Critical
+                status_text = "Critical"
+
+            return {
+                "remaining": remaining,
+                "limit": limit,
+                "reset_in_minutes": minutes_left,
+                "status_color": status_color,
+                "status_text": status_text,
+                "used": limit - remaining
+            }
+        else:
+            return None
+    except Exception:
+        return None
 
 
 # For testing

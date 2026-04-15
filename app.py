@@ -22,6 +22,10 @@ from generators.visual_elements import (
 )
 from theme_gallery import render_theme_gallery 
 
+import requests
+from datetime import datetime
+
+
 
 # Load environment variables
 load_dotenv()
@@ -65,6 +69,44 @@ st.markdown("""
 st.title("GitCanvas: Profile Architect 🛠️")
 st.markdown("### Design your GitHub Stats. Copy the Code. Done.")
 
+
+def get_rate_limit_status(token: str = None) -> dict | None:
+    """Fetch GitHub API rate limit status."""
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    if token and token.strip():
+        headers["Authorization"] = f"token {token.strip()}"
+
+    try:
+        response = requests.get("https://api.github.com/rate_limit", headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            core = data["resources"]["core"]
+            
+            remaining = core["remaining"]
+            limit = core["limit"]
+            reset_ts = core["reset"]
+            
+            reset_time = datetime.fromtimestamp(reset_ts)
+            minutes_left = max(0, int((reset_time - datetime.now()).total_seconds() / 60))
+
+            if remaining > limit * 0.65:
+                color = "🟢"
+            elif remaining > limit * 0.25:
+                color = "🟠"
+            else:
+                color = "🔴"
+
+            return {
+                "remaining": remaining,
+                "limit": limit,
+                "reset_in": minutes_left,
+                "color": color
+            }
+    except:
+        pass
+    
+    return None
 
 
 # --- Sidebar Controls ---
@@ -224,6 +266,26 @@ with st.sidebar:
         type="password",
         help="Paste a token here, or set GITHUB_TOKEN in a .env file in the project root. Sidebar value overrides .env.",
     )
+
+    # ==================== RATE LIMIT STATUS INDICATOR ====================
+    st.markdown("**Rate Limit Status**")
+
+    rate_info = get_rate_limit_status(github_token)
+
+    if rate_info:
+        col1, col2 = st.columns([0.8, 3.2])
+        with col1:
+            st.markdown(f"{rate_info['color']}", unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"**{rate_info['remaining']} / {rate_info['limit']}** remaining")
+
+        st.caption(f"🔄 Resets in **{rate_info['reset_in']}** minutes")
+
+        if rate_info['remaining'] < 200:
+            st.warning("⚠️ Rate limit is getting low. Consider using a token with higher limits.", icon="⚠️")
+    else:
+        st.caption("Using anonymous access → **60 requests/hour**")
+    # =====================================================================
     
     # Animation toggle
     animations_enabled = st.checkbox("Enable Animations", value=False, help="Enable SVG animations for cards that support it")
