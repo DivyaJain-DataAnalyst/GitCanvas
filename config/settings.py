@@ -29,6 +29,11 @@ class GitCanvasSettings(BaseSettings):
     github_token: Optional[SecretStr] = Field(default=None)
     openai_api_key: Optional[SecretStr] = Field(default=None)
     gemini_api_key: Optional[SecretStr] = Field(default=None)
+    
+    # Redis caching configuration
+    cache_backend: str = Field(default="local", description="Cache backend: 'local' or 'redis'")
+    redis_url: Optional[str] = Field(default=None, description="Redis connection URL (e.g., redis://localhost:6379/0)")
+    redis_enabled: bool = Field(default=False, description="Enable Redis caching for distributed deployments")
 
     @field_validator("github_token", "openai_api_key", "gemini_api_key", mode="before")
     @classmethod
