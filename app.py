@@ -19,6 +19,7 @@ from generators.visual_elements import (
     gif_element,
     sticker_element
 )
+from theme_gallery import render_theme_gallery 
 
 
 # Load environment variables
@@ -222,6 +223,11 @@ data.setdefault("created_at", "")
 data.setdefault("top_languages", [])
 data.setdefault("contributions", [])
 
+
+# ── Honour theme picked from the Gallery (Issue #162) ────────────────────
+if "gallery_selected_theme" in st.session_state:
+    selected_theme = st.session_state.pop("gallery_selected_theme")
+
 # Apply custom colors to current theme for python logic
 current_theme_opts = all_themes.get(selected_theme, all_themes["Default"]).copy()
 if custom_colors:
@@ -229,7 +235,12 @@ if custom_colors:
 
 
 # --- Layout: Tabs ---
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs(["Main Stats", "Languages", "Top Repositories", "Contributions", "🔥 GitHub Streak", "🔗 Social Links", "Icons & Badges", "🔥 AI Roast", "Recent Activity", "✨ Visual Elements", "🏆 Trophy"])
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12 = st.tabs([
+    "Main Stats", "Languages", "Top Repositories", "Contributions",
+    "🔥 GitHub Streak", "🔗 Social Links", "Icons & Badges",
+    "🔥 AI Roast", "Recent Activity", "✨ Visual Elements",
+    "🏆 Trophy", "🎨 Theme Gallery"    # ← NEW TAB
+])
 
 def show_code_area(code_content, label="Markdown Code"):
     st.markdown(f"**{label}** (Copy below)")
@@ -747,3 +758,10 @@ with tab11:
     
     svg_bytes = trophy_card.draw_trophy_card(trophy_data, selected_theme, custom_colors)
     render_tab(svg_bytes, "trophy", username, selected_theme, custom_colors, code_template="![GitHub Trophy]({url})", output_format=output_format)
+
+    # ── NEW: Theme Gallery Tab (Issue #162) ──────────────────────────────────
+with tab12:
+    chosen_theme = render_theme_gallery(all_themes, selected_theme)
+    if chosen_theme:
+        st.session_state["gallery_selected_theme"] = chosen_theme
+        st.rerun()
