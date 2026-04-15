@@ -42,7 +42,7 @@ COUNTING_SCRIPT = """
 </script>
 """
 
-def draw_stats_card(data, theme_name="Default", show_options=None, custom_colors=None, animations_enabled=True):
+def draw_stats_card(data, theme_name="Default", show_options=None, custom_colors=None, animations_enabled=True, compact=False):
     """
     Generates the Main Stats Card SVG.
     data: dict with user stats

@@ -2,7 +2,7 @@ import svgwrite
 from themes.styles import THEMES
 from .svg_base import create_svg_base
 
-def draw_repo_card(data, theme_name="Default", custom_colors=None, sort_by="stars", limit=5):
+def draw_repo_card(data, theme_name="Default", custom_colors=None, sort_by="stars", limit=5, compact=False):
     """
     Generates the Top Repositories Card SVG.
     data: dict with 'top_repos' list containing repo data
