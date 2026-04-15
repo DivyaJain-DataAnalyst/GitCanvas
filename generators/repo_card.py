@@ -1,6 +1,6 @@
 import svgwrite
 from themes.styles import THEMES
-from .svg_base import create_svg_base
+from .svg_base import create_svg_base, draw_card_background, draw_divider_line
 
 def draw_repo_card(data, theme_name="Default", custom_colors=None, sort_by="stars", limit=5, compact=False):
     """
@@ -276,12 +276,6 @@ def draw_repo_card(data, theme_name="Default", custom_colors=None, sort_by="star
         
         # Separator line between repos (except for last one)
         if i < len(repos) - 1:
-            dwg.add(dwg.line(
-                start=(20, y + repo_height - 8),
-                end=(width - 20, y + repo_height - 8),
-                stroke=border_color,
-                stroke_width=1,
-                opacity=0.3
-            ))
+            draw_divider_line(dwg, 20, y + repo_height - 8, width - 20, y + repo_height - 8, theme)
     
     return dwg.tostring()

@@ -2,7 +2,7 @@ import math
 import random
 import svgwrite
 from themes.styles import THEMES
-from .svg_base import create_svg_base, CSS_ANIMATIONS
+from .svg_base import create_svg_base, CSS_ANIMATIONS, draw_card_background, draw_divider_line, draw_section_title
 
 # JavaScript for number counting animation
 COUNTING_SCRIPT = """
@@ -104,8 +104,7 @@ def draw_stats_card(data, theme_name="Default", show_options=None, custom_colors
     }
     
     # Background (no animation)
-    dwg.add(dwg.rect(insert=(0, 0), size=("100%", "100%"), rx=10, ry=10, 
-                     fill=theme["bg_color"], stroke=theme["border_color"], stroke_width=2))
+    draw_card_background(dwg, width, height, theme)
     if theme_name == "Stranger_things":
         # Floating particles in background
         random.seed(42)
