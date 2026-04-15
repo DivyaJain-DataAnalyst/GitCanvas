@@ -14,11 +14,13 @@ from generators import stats_card, lang_card, contrib_card, badge_generator, rec
 from utils import github_api
 from utils.cache import clear_cache as clear_ttl_cache
 from themes.styles import THEMES, get_all_themes, CUSTOM_THEMES
+from utils.error_card import draw_error_card
 from generators.visual_elements import (
     emoji_element,
     gif_element,
     sticker_element
 )
+from theme_gallery import render_theme_gallery 
 
 
 # Load environment variables
@@ -82,7 +84,40 @@ with st.sidebar:
     # Combine with custom themes at the end
     theme_options = predefined_themes + custom_theme_names
     
-    selected_theme = st.selectbox("Select Theme", theme_options)
+    # ── Theme Search & Filter (Issue #163) ───────────────────────────────────
+    st.markdown("**Filter Themes**")
+
+    # Search bar
+    theme_search = st.text_input("🔍 Search themes", placeholder="e.g. dark, gaming...", key="theme_search")
+
+    # Collect all unique tags across themes
+    all_tags = sorted(set(
+        tag
+        for t in all_themes.values()
+        for tag in t.get("tags", [])
+    ))
+
+    # Filter buttons (pills)
+    selected_tags = st.pills("Filter by tag", options=all_tags, selection_mode="multi", key="theme_tags")
+
+    # Apply filters to theme_options
+    def matches_filter(name, props):
+        theme_tags = props.get("tags", [])
+        search_match = not theme_search or theme_search.lower() in name.lower() or any(theme_search.lower() in tag for tag in theme_tags)
+        if not selected_tags:
+            tag_match = True
+        elif not theme_tags:
+            tag_match = True
+        else:
+            tag_match = any(tag in theme_tags for tag in selected_tags)
+        return search_match and tag_match
+
+    filtered_theme_options = [
+        name for name, props in all_themes.items()
+        if matches_filter(name, props)
+    ] or theme_options  # fallback to all if nothing matches
+
+    selected_theme = st.selectbox("Select Theme", filtered_theme_options)
     
     # Customization Expander
     # Ensure custom_colors exists even if the expander isn't opened
@@ -191,8 +226,7 @@ effective_github_token = _github_from_sidebar or _settings.github_token_value()
 def load_data(user, token=None, _cache_version="v3"):  # bump when auth/cache semantics change
     d = github_api.get_live_github_data(user, token)
     if not d:
-        st.warning("Using mock data (API limits).")
-        d = github_api.get_mock_data(user)
+        return None   # Signal the caller — don't silently use mock data
     return d
 
 data = load_data(username if username else "torvalds", effective_github_token or None)
@@ -206,7 +240,23 @@ if not effective_github_token:
 
 # Ensure data is not None
 if data is None:
-    data = {}
+    if effective_github_token:
+        _err_type = "invalid_user"
+        _err_type_msg = "Username not found — check spelling."
+    else:
+        _err_type = "rate_limit"
+        _err_type_msg = "GitHub API rate limit reached — add a `GITHUB_TOKEN` in the sidebar."
+
+    _err_svg = draw_error_card(_err_type, username=username if username else "user")
+
+    st.error(f"⚠️ **Could not load GitHub data.** {_err_type_msg}")
+    st.markdown(
+        f'<div style="max-width:450px; margin-top:12px;">{_err_svg}</div>',
+        unsafe_allow_html=True
+    )
+    st.info("💡 Add a `GITHUB_TOKEN` in the sidebar to fix rate limit issues.")
+    st.stop()
+
 
 # Ensure backward compatibility with old cached data
 if "top_repos" not in data:
@@ -222,6 +272,11 @@ data.setdefault("created_at", "")
 data.setdefault("top_languages", [])
 data.setdefault("contributions", [])
 
+
+# ── Honour theme picked from the Gallery (Issue #162) ────────────────────
+if "gallery_selected_theme" in st.session_state:
+    selected_theme = st.session_state.pop("gallery_selected_theme")
+
 # Apply custom colors to current theme for python logic
 current_theme_opts = all_themes.get(selected_theme, all_themes["Default"]).copy()
 if custom_colors:
@@ -229,7 +284,12 @@ if custom_colors:
 
 
 # --- Layout: Tabs ---
-tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11 = st.tabs(["Main Stats", "Languages", "Top Repositories", "Contributions", "🔥 GitHub Streak", "🔗 Social Links", "Icons & Badges", "🔥 AI Roast", "Recent Activity", "✨ Visual Elements", "🏆 Trophy"])
+tab1, tab2, tab3, tab4, tab5, tab6, tab7, tab8, tab9, tab10, tab11, tab12 = st.tabs([
+    "Main Stats", "Languages", "Top Repositories", "Contributions",
+    "🔥 GitHub Streak", "🔗 Social Links", "Icons & Badges",
+    "🔥 AI Roast", "Recent Activity", "✨ Visual Elements",
+    "🏆 Trophy", "🎨 Theme Gallery"    # ← NEW TAB
+])
 
 def show_code_area(code_content, label="Markdown Code"):
     st.markdown(f"**{label}** (Copy below)")
@@ -379,9 +439,29 @@ with tab1:
     show_followers = c4.checkbox("Followers", True)
 
     show_ops = {"stars": show_stars, "commits": show_commits, "repos": show_repos, "followers": show_followers}
+        # Compact layout toggle (Issue #164)
+    compact_layout = st.checkbox("📐 Compact Layout", value=False, help="Slim 300x120 card — fit multiple cards in one README row")
 
-    # Pass selected_theme string to support theme-specific logic (e.g. Glass)
-    svg_bytes = stats_card.draw_stats_card(data, selected_theme, show_ops, custom_colors, animations_enabled)
+    # Backward-compatible call: support generators that may not yet accept `compact`
+    try:
+        svg_bytes = stats_card.draw_stats_card(
+            data,
+            selected_theme,
+            show_ops,
+            custom_colors,
+            animations_enabled,
+            compact=compact_layout,
+        )
+    except TypeError as e:
+        if "unexpected keyword argument 'compact'" not in str(e):
+            raise
+        svg_bytes = stats_card.draw_stats_card(
+            data,
+            selected_theme,
+            show_ops,
+            custom_colors,
+            animations_enabled,
+        )
     render_tab(svg_bytes, "stats", username, selected_theme, custom_colors, hide_params=show_ops, code_template=f"[![{username}'s Stats]({{url}})](https://github.com/{{username}})", output_format=output_format)
     
     # Prepare the SVG string from your generator
@@ -476,8 +556,8 @@ with tab3:
     if exclude_forks and "top_repos" in filtered_data:
         filtered_data["top_repos"] = [r for r in filtered_data["top_repos"] if not r.get("is_fork", False)]
     
-    # Generate card - Pass selected_theme string
-    svg_bytes = repo_card.draw_repo_card(filtered_data, selected_theme, custom_colors, sort_by=sort_by, limit=repo_limit)
+    compact_repo = st.checkbox("📐 Compact Layout", value=False, help="Slim 300px card — fit multiple cards in one README row", key="compact_repo")
+    svg_bytes = repo_card.draw_repo_card(filtered_data, selected_theme, custom_colors, sort_by=sort_by, limit=repo_limit, compact=compact_repo)
     render_tab(svg_bytes, "repos", username, selected_theme, custom_colors, code_template="![Top Repos]({url})", output_format=output_format)
 
 with tab4:
@@ -747,3 +827,10 @@ with tab11:
     
     svg_bytes = trophy_card.draw_trophy_card(trophy_data, selected_theme, custom_colors)
     render_tab(svg_bytes, "trophy", username, selected_theme, custom_colors, code_template="![GitHub Trophy]({url})", output_format=output_format)
+
+    # ── NEW: Theme Gallery Tab (Issue #162) ──────────────────────────────────
+with tab12:
+    chosen_theme = render_theme_gallery(all_themes, selected_theme)
+    if chosen_theme:
+        st.session_state["gallery_selected_theme"] = chosen_theme
+        st.rerun()
