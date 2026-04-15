@@ -426,8 +426,26 @@ with tab1:
         # Compact layout toggle (Issue #164)
     compact_layout = st.checkbox("📐 Compact Layout", value=False, help="Slim 300x120 card — fit multiple cards in one README row")
 
-    # Pass selected_theme string to support theme-specific logic (e.g. Glass)
-    svg_bytes = stats_card.draw_stats_card(data, selected_theme, show_ops, custom_colors, animations_enabled, compact=compact_layout)
+    # Backward-compatible call: support generators that may not yet accept `compact`
+    try:
+        svg_bytes = stats_card.draw_stats_card(
+            data,
+            selected_theme,
+            show_ops,
+            custom_colors,
+            animations_enabled,
+            compact=compact_layout,
+        )
+    except TypeError as e:
+        if "unexpected keyword argument 'compact'" not in str(e):
+            raise
+        svg_bytes = stats_card.draw_stats_card(
+            data,
+            selected_theme,
+            show_ops,
+            custom_colors,
+            animations_enabled,
+        )
     render_tab(svg_bytes, "stats", username, selected_theme, custom_colors, hide_params=show_ops, code_template=f"[![{username}'s Stats]({{url}})](https://github.com/{{username}})", output_format=output_format)
     
     # Prepare the SVG string from your generator
