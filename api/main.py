@@ -107,6 +107,36 @@ def get_token_from_header(request: Request) -> Optional[str]:
     return None
 
 
+def _is_local_request(request: Request) -> bool:
+    """Return True when request originates from localhost."""
+    if not request.client:
+        return False
+    return request.client.host in {"127.0.0.1", "::1", "localhost"}
+
+
+def _authorize_cache_clear(request: Request) -> None:
+    """Protect cache-clear endpoints from public access in shared deployments."""
+    settings = get_settings()
+
+    if not settings.cache_clear_enabled:
+        raise HTTPException(status_code=403, detail="Cache clear endpoints are disabled")
+
+    admin_token = settings.cache_clear_admin_token_value()
+    if admin_token:
+        provided = request.headers.get("X-Admin-Token") or get_token_from_header(request)
+        if provided != admin_token:
+            raise HTTPException(status_code=403, detail="Invalid admin token")
+        return
+
+    if settings.cache_clear_allow_localhost_only and _is_local_request(request):
+        return
+
+    raise HTTPException(
+        status_code=403,
+        detail="Cache clear is restricted. Configure CACHE_CLEAR_ADMIN_TOKEN or use localhost access.",
+    )
+
+
 @app.get("/")
 def read_root():
     return {"message": "GitCanvas API is running"}
@@ -495,21 +525,23 @@ async def get_cache_statistics():
 
 
 @app.delete("/api/cache/clear")
-async def clear_all_caches():
+async def clear_all_caches(request: Request):
     """
     Clear all caches (GitHub API and SVG caches)
     """
+    _authorize_cache_clear(request)
     return clear_cache()
 
 
 @app.delete("/api/cache/clear/{cache_type}")
-async def clear_specific_cache(cache_type: str):
+async def clear_specific_cache(cache_type: str, request: Request):
     """
     Clear specific cache type
     
     Args:
         cache_type: 'github_api' or 'svg'
     """
+    _authorize_cache_clear(request)
     if cache_type not in ['github_api', 'svg']:
         return {"error": "Invalid cache type. Use 'github_api' or 'svg'"}
     
