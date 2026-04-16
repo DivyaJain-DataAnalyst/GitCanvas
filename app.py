@@ -12,7 +12,11 @@ from config.settings import get_settings
 from roast_widget_streamlit import render_roast_widget
 from generators import stats_card, lang_card, contrib_card, badge_generator, recent_activity_card, streak_card, repo_card, social_card, trophy_card, sparkline
 from utils import github_api
-from utils.github_utils import get_rate_limit_status as fetch_rate_limit_status
+try:
+    from utils.github_utils import get_rate_limit_status as fetch_rate_limit_status
+except ImportError:
+    def fetch_rate_limit_status(token: str | None = None) -> dict | None:
+        return None
 from utils.cache import clear_cache as clear_ttl_cache
 from themes.styles import THEMES, get_all_themes, CUSTOM_THEMES
 from utils.error_card import draw_error_card
