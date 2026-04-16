@@ -12,6 +12,7 @@ from config.settings import get_settings
 from roast_widget_streamlit import render_roast_widget
 from generators import stats_card, lang_card, contrib_card, badge_generator, recent_activity_card, streak_card, repo_card, social_card, trophy_card, sparkline
 from utils import github_api
+from utils.github_utils import get_rate_limit_status as fetch_rate_limit_status
 from utils.cache import clear_cache as clear_ttl_cache
 from themes.styles import THEMES, get_all_themes, CUSTOM_THEMES
 from utils.error_card import draw_error_card
@@ -21,6 +22,7 @@ from generators.visual_elements import (
     sticker_element
 )
 from theme_gallery import render_theme_gallery 
+
 
 
 # Load environment variables
@@ -65,6 +67,11 @@ st.markdown("""
 st.title("GitCanvas: Profile Architect 🛠️")
 st.markdown("### Design your GitHub Stats. Copy the Code. Done.")
 
+
+@st.cache_data(ttl=60, show_spinner=False)
+def get_cached_rate_limit_status(token: str | None) -> dict | None:
+    """Cache rate-limit calls to avoid a network hit on every Streamlit rerun."""
+    return fetch_rate_limit_status(token)
 
 
 # --- Sidebar Controls ---
@@ -238,6 +245,33 @@ with st.sidebar:
         type="password",
         help="Paste a token here, or set GITHUB_TOKEN in a .env file in the project root. Sidebar value overrides .env.",
     )
+
+    # Resolve token once so UI status + data loading stay consistent.
+    _github_from_sidebar = (github_token or "").strip()
+    effective_github_token = _github_from_sidebar or _settings.github_token_value()
+
+    # ==================== RATE LIMIT STATUS INDICATOR ====================
+    st.markdown("**Rate Limit Status**")
+
+    rate_info = get_cached_rate_limit_status(effective_github_token or None)
+
+    if rate_info:
+        col1, col2 = st.columns([0.8, 3.2])
+        with col1:
+            st.markdown(f"{rate_info['color']}", unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"**{rate_info['remaining']} / {rate_info['limit']}** remaining")
+
+        st.caption(f"🔄 Resets in **{rate_info['reset_in']}** minutes")
+
+        if rate_info['remaining'] < 200:
+            st.warning("⚠️ Rate limit is getting low. Consider using a token with higher limits.", icon="⚠️")
+    else:
+        if effective_github_token:
+            st.caption("Rate limit status unavailable right now.")
+        else:
+            st.caption("Using anonymous access → **60 requests/hour**")
+    # =====================================================================
     
     # Animation toggle
     animations_enabled = st.checkbox("Enable Animations", value=False, help="Enable SVG animations for cards that support it")
@@ -255,10 +289,6 @@ with st.sidebar:
         st.rerun()
         
     st.info("💡 Tip: Use the 'Icons & Badges' tab to add your tech stack icons!")
-
-# Resolve token for API + caches: sidebar wins, else GITHUB_TOKEN from .env / environment.
-_github_from_sidebar = (github_token or "").strip()
-effective_github_token = _github_from_sidebar or _settings.github_token_value()
 
 # Data Loading
 @st.cache_data(ttl=3600)  # Cache for 1 hour
