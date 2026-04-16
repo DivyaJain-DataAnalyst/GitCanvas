@@ -12,6 +12,11 @@ from config.settings import get_settings
 from roast_widget_streamlit import render_roast_widget
 from generators import stats_card, lang_card, contrib_card, badge_generator, recent_activity_card, streak_card, repo_card, social_card, trophy_card, sparkline
 from utils import github_api
+try:
+    from utils.github_utils import get_rate_limit_status as fetch_rate_limit_status
+except ImportError:
+    def fetch_rate_limit_status(token: str | None = None) -> dict | None:
+        return None
 from utils.cache import clear_cache as clear_ttl_cache
 from themes.styles import THEMES, get_all_themes, CUSTOM_THEMES
 from utils.error_card import draw_error_card
@@ -21,6 +26,7 @@ from generators.visual_elements import (
     sticker_element
 )
 from theme_gallery import render_theme_gallery 
+
 
 
 # Load environment variables
@@ -65,6 +71,11 @@ st.markdown("""
 st.title("GitCanvas: Profile Architect 🛠️")
 st.markdown("### Design your GitHub Stats. Copy the Code. Done.")
 
+
+@st.cache_data(ttl=60, show_spinner=False)
+def get_cached_rate_limit_status(token: str | None) -> dict | None:
+    """Cache rate-limit calls to avoid a network hit on every Streamlit rerun."""
+    return fetch_rate_limit_status(token)
 
 
 # --- Sidebar Controls ---
@@ -125,21 +136,35 @@ with st.sidebar:
     # Apply filters to theme_options
     def matches_filter(name, props):
         theme_tags = props.get("tags", [])
-        search_match = not theme_search or theme_search.lower() in name.lower() or any(theme_search.lower() in tag for tag in theme_tags)
+        search_match = not theme_search or theme_search.lower() in name.lower() or any(theme_search.lower() in t.lower() for t in theme_tags)
+        
         if not selected_tags:
-            tag_match = True
-        elif not theme_tags:
             tag_match = True
         else:
             tag_match = any(tag in theme_tags for tag in selected_tags)
+            
         return search_match and tag_match
 
     filtered_theme_options = [
-        name for name, props in all_themes.items()
-        if matches_filter(name, props)
-    ] or theme_options  # fallback to all if nothing matches
+        name for name in theme_options
+        if name in all_themes and matches_filter(name, all_themes[name])
+    ]
+    if not filtered_theme_options:
+        filtered_theme_options = ["Default"]
 
-    selected_theme = st.selectbox("Select Theme", filtered_theme_options)
+    # Maintain selection synchronization
+    if "gallery_selected_theme" in st.session_state:
+        target_theme = st.session_state.pop("gallery_selected_theme")
+        if target_theme not in filtered_theme_options:
+            filtered_theme_options.append(target_theme)
+        st.session_state["current_theme_selection"] = target_theme
+
+    try:
+        default_idx = filtered_theme_options.index(st.session_state.get("current_theme_selection", "Default"))
+    except ValueError:
+        default_idx = 0
+
+    selected_theme = st.selectbox("Select Theme", filtered_theme_options, index=default_idx, key="current_theme_selection")
     
     # Customization Expander
     # Ensure custom_colors exists even if the expander isn't opened
@@ -224,12 +249,42 @@ with st.sidebar:
         type="password",
         help="Paste a token here, or set GITHUB_TOKEN in a .env file in the project root. Sidebar value overrides .env.",
     )
+
+    # Resolve token once so UI status + data loading stay consistent.
+    _github_from_sidebar = (github_token or "").strip()
+    effective_github_token = _github_from_sidebar or _settings.github_token_value()
+
+    # ==================== RATE LIMIT STATUS INDICATOR ====================
+    st.markdown("**Rate Limit Status**")
+
+    rate_info = get_cached_rate_limit_status(effective_github_token or None)
+
+    if rate_info:
+        col1, col2 = st.columns([0.8, 3.2])
+        with col1:
+            st.markdown(f"{rate_info['color']}", unsafe_allow_html=True)
+        with col2:
+            st.markdown(f"**{rate_info['remaining']} / {rate_info['limit']}** remaining")
+
+        st.caption(f"🔄 Resets in **{rate_info['reset_in']}** minutes")
+
+        if rate_info['remaining'] < 200:
+            st.warning("⚠️ Rate limit is getting low. Consider using a token with higher limits.", icon="⚠️")
+    else:
+        if effective_github_token:
+            st.caption("Rate limit status unavailable right now.")
+        else:
+            st.caption("Using anonymous access → **60 requests/hour**")
+    # =====================================================================
     
     # Animation toggle
     animations_enabled = st.checkbox("Enable Animations", value=False, help="Enable SVG animations for cards that support it")
     
     # Output format selector
     output_format = st.radio("Output Format", ["Markdown", "HTML"], index=0, help="Choose between Markdown or HTML code format")
+    
+    # Dev/Test mock data toggle
+    use_mock_data = st.checkbox("Use Mock Data on API Failure", value=False, help="Dev/Test mode: fallback to mock data if GitHub API hits rate limits or errors.")
     
     if st.button("Refresh Data", use_container_width=True):
         st.cache_data.clear()
@@ -239,19 +294,19 @@ with st.sidebar:
         
     st.info("💡 Tip: Use the 'Icons & Badges' tab to add your tech stack icons!")
 
-# Resolve token for API + caches: sidebar wins, else GITHUB_TOKEN from .env / environment.
-_github_from_sidebar = (github_token or "").strip()
-effective_github_token = _github_from_sidebar or _settings.github_token_value()
-
 # Data Loading
 @st.cache_data(ttl=3600)  # Cache for 1 hour
-def load_data(user, token=None, _cache_version="v3"):  # bump when auth/cache semantics change
+def load_data(user, token=None, use_mock=False, _cache_version="v3"):  # bump when auth/cache semantics change
     d = github_api.get_live_github_data(user, token)
     if not d:
-        return None   # Signal the caller — don't silently use mock data
+        if use_mock:
+            st.warning("API limits/errors reached. Using mock data (Dev/Test mode).")
+            d = github_api.get_mock_data(user)
+        else:
+            return None
     return d
 
-data = load_data(username if username else "torvalds", effective_github_token or None)
+data = load_data(username if username else "torvalds", effective_github_token or None, use_mock_data)
 
 # Show token warning only if no token is available from ANY source (env, secrets, sidebar)
 if not effective_github_token:
@@ -294,10 +349,6 @@ data.setdefault("created_at", "")
 data.setdefault("top_languages", [])
 data.setdefault("contributions", [])
 
-
-# ── Honour theme picked from the Gallery (Issue #162) ────────────────────
-if "gallery_selected_theme" in st.session_state:
-    selected_theme = st.session_state.pop("gallery_selected_theme")
 
 # Apply custom colors to current theme for python logic
 current_theme_opts = all_themes.get(selected_theme, all_themes["Default"]).copy()

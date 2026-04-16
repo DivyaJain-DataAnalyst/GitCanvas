@@ -4,7 +4,7 @@ import random
 import logging
 from themes.styles import THEMES
 from datetime import date, datetime, timedelta, timezone
-from .svg_base import CSS_ANIMATIONS
+from .svg_base import create_svg_base, CSS_ANIMATIONS, draw_card_background
 
 logger = logging.getLogger(__name__)
 
@@ -433,8 +433,7 @@ def draw_contrib_card(data, theme_name="Default", custom_colors=None, date_range
     dwg = svgwrite.Drawing(size=("100%", "100%"), viewBox=f"0 0 {width} {height}")
     
     # Background
-    dwg.add(dwg.rect(insert=(0, 0), size=("100%", "100%"), rx=10, ry=10, 
-                     fill=theme["bg_color"], stroke=theme["border_color"], stroke_width=2))
+    draw_card_background(dwg, width, height, theme)
     
     # Title
     # Validate username to prevent KeyError
