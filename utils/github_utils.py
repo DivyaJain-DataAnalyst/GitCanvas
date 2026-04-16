@@ -194,14 +194,14 @@ def fetch_github_stats_detailed(username: str, github_token: Optional[str] = Non
         return fetch_github_stats(username)  # Fallback
 
 
-def get_rate_limit_status(token: str = None) -> dict:
+def get_rate_limit_status(token: str = None) -> Optional[Dict[str, object]]:
     """
-    Fetch current GitHub API rate limit status.
-    Works with or without token.
+    Fetch current GitHub API rate limit status for UI display.
+    Returns None if unavailable.
     """
-    headers = {}
-    if token:
-        headers["Authorization"] = f"token {token}"
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    if token and token.strip():
+        headers["Authorization"] = f"token {token.strip()}"
 
     try:
         # Use the dedicated rate limit endpoint (doesn't count against your limit)
@@ -240,11 +240,14 @@ def get_rate_limit_status(token: str = None) -> dict:
                 "reset_in_minutes": minutes_left,
                 "status_color": status_color,
                 "status_text": status_text,
-                "used": limit - remaining
+                "used": limit - remaining,
+                # Backward-compatible keys used by app UI.
+                "reset_in": minutes_left,
+                "color": status_color,
             }
-        else:
-            return None
-    except Exception:
+        return None
+    except Exception as exc:
+        logger.warning(f"Rate limit status fetch failed: {exc}")
         return None
 
 

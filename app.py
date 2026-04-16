@@ -12,6 +12,7 @@ from config.settings import get_settings
 from roast_widget_streamlit import render_roast_widget
 from generators import stats_card, lang_card, contrib_card, badge_generator, recent_activity_card, streak_card, repo_card, social_card, trophy_card, sparkline
 from utils import github_api
+from utils.github_utils import get_rate_limit_status as fetch_rate_limit_status
 from utils.cache import clear_cache as clear_ttl_cache
 from themes.styles import THEMES, get_all_themes, CUSTOM_THEMES
 from utils.error_card import draw_error_card
@@ -21,9 +22,6 @@ from generators.visual_elements import (
     sticker_element
 )
 from theme_gallery import render_theme_gallery 
-
-import requests
-from datetime import datetime
 
 
 
@@ -70,43 +68,10 @@ st.title("GitCanvas: Profile Architect 🛠️")
 st.markdown("### Design your GitHub Stats. Copy the Code. Done.")
 
 
-def get_rate_limit_status(token: str = None) -> dict | None:
-    """Fetch GitHub API rate limit status."""
-    headers = {"Accept": "application/vnd.github.v3+json"}
-    if token and token.strip():
-        headers["Authorization"] = f"token {token.strip()}"
-
-    try:
-        response = requests.get("https://api.github.com/rate_limit", headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            data = response.json()
-            core = data["resources"]["core"]
-            
-            remaining = core["remaining"]
-            limit = core["limit"]
-            reset_ts = core["reset"]
-            
-            reset_time = datetime.fromtimestamp(reset_ts)
-            minutes_left = max(0, int((reset_time - datetime.now()).total_seconds() / 60))
-
-            if remaining > limit * 0.65:
-                color = "🟢"
-            elif remaining > limit * 0.25:
-                color = "🟠"
-            else:
-                color = "🔴"
-
-            return {
-                "remaining": remaining,
-                "limit": limit,
-                "reset_in": minutes_left,
-                "color": color
-            }
-    except:
-        pass
-    
-    return None
+@st.cache_data(ttl=60, show_spinner=False)
+def get_cached_rate_limit_status(token: str | None) -> dict | None:
+    """Cache rate-limit calls to avoid a network hit on every Streamlit rerun."""
+    return fetch_rate_limit_status(token)
 
 
 # --- Sidebar Controls ---
@@ -267,10 +232,14 @@ with st.sidebar:
         help="Paste a token here, or set GITHUB_TOKEN in a .env file in the project root. Sidebar value overrides .env.",
     )
 
+    # Resolve token once so UI status + data loading stay consistent.
+    _github_from_sidebar = (github_token or "").strip()
+    effective_github_token = _github_from_sidebar or _settings.github_token_value()
+
     # ==================== RATE LIMIT STATUS INDICATOR ====================
     st.markdown("**Rate Limit Status**")
 
-    rate_info = get_rate_limit_status(github_token)
+    rate_info = get_cached_rate_limit_status(effective_github_token or None)
 
     if rate_info:
         col1, col2 = st.columns([0.8, 3.2])
@@ -284,7 +253,10 @@ with st.sidebar:
         if rate_info['remaining'] < 200:
             st.warning("⚠️ Rate limit is getting low. Consider using a token with higher limits.", icon="⚠️")
     else:
-        st.caption("Using anonymous access → **60 requests/hour**")
+        if effective_github_token:
+            st.caption("Rate limit status unavailable right now.")
+        else:
+            st.caption("Using anonymous access → **60 requests/hour**")
     # =====================================================================
     
     # Animation toggle
@@ -300,10 +272,6 @@ with st.sidebar:
         st.rerun()
         
     st.info("💡 Tip: Use the 'Icons & Badges' tab to add your tech stack icons!")
-
-# Resolve token for API + caches: sidebar wins, else GITHUB_TOKEN from .env / environment.
-_github_from_sidebar = (github_token or "").strip()
-effective_github_token = _github_from_sidebar or _settings.github_token_value()
 
 # Data Loading
 @st.cache_data(ttl=3600)  # Cache for 1 hour
