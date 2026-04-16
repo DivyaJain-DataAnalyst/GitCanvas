@@ -130,18 +130,25 @@ class LocalCacheBackend(CacheBackend):
 class RedisCacheBackend(CacheBackend):
     """Distributed Redis cache backend for horizontal deployments"""
     
-    def __init__(self, redis_url: str = "redis://localhost:6379/0"):
+    def __init__(self, redis_url: str = "redis://localhost:6379/0", key_prefix: str = "gitcanvas:"):
+        self.key_prefix = key_prefix if key_prefix.endswith(":") else f"{key_prefix}:"
         try:
             import redis
             self.redis = redis.from_url(redis_url, decode_responses=True)
             # Test connection
             self.redis.ping()
             self.connected = True
-            logger.info(f"Redis cache backend connected to {redis_url}")
+            logger.info(f"Redis cache backend connected to {redis_url} with prefix {self.key_prefix}")
         except Exception as e:
             logger.warning(f"Failed to connect to Redis: {e}. Falling back to local cache.")
             self.connected = False
             self.redis = None
+
+    def _scoped_key(self, key: str) -> str:
+        """Ensure all Redis keys are scoped to this application namespace."""
+        if key.startswith(self.key_prefix):
+            return key
+        return f"{self.key_prefix}{key}"
     
     def get(self, key: str) -> Any:
         """Retrieve from Redis"""
@@ -149,7 +156,7 @@ class RedisCacheBackend(CacheBackend):
             return None
         
         try:
-            value = self.redis.get(key)
+            value = self.redis.get(self._scoped_key(key))
             if value:
                 try:
                     return json.loads(value)
@@ -168,7 +175,7 @@ class RedisCacheBackend(CacheBackend):
         try:
             # Serialize value to JSON
             serialized_value = json.dumps(value) if not isinstance(value, str) else value
-            self.redis.setex(key, ttl, serialized_value)
+            self.redis.setex(self._scoped_key(key), ttl, serialized_value)
         except Exception as e:
             logger.error(f"Redis set error for key {key}: {e}")
     
@@ -178,7 +185,7 @@ class RedisCacheBackend(CacheBackend):
             return False
         
         try:
-            return self.redis.exists(key) > 0
+            return self.redis.exists(self._scoped_key(key)) > 0
         except Exception as e:
             logger.error(f"Redis exists error for key {key}: {e}")
             return False
@@ -189,29 +196,40 @@ class RedisCacheBackend(CacheBackend):
             return
         
         try:
-            self.redis.delete(key)
+            self.redis.delete(self._scoped_key(key))
         except Exception as e:
             logger.error(f"Redis delete error for key {key}: {e}")
     
     def clear(self, cache_type: Optional[str] = None) -> None:
-        """Clear Redis cache with pattern matching"""
+        """Clear namespaced Redis cache with SCAN to avoid blocking."""
         if not self.connected or not self.redis:
             return
         
         try:
             if cache_type in (None, 'all'):
-                pattern = "*"
+                key_suffix = "*"
             elif cache_type == 'svg':
-                pattern = "svg_*"
+                key_suffix = "svg_*"
             elif cache_type == 'github_api':
-                pattern = "github_api_*"
+                key_suffix = "github_api_*"
             else:
                 return
-            
-            keys = self.redis.keys(pattern)
-            if keys:
-                self.redis.delete(*keys)
-                logger.info(f"Cleared {len(keys)} keys from Redis with pattern {pattern}")
+
+            pattern = f"{self.key_prefix}{key_suffix}"
+            deleted_count = 0
+            batch = []
+            batch_size = 200
+
+            for key in self.redis.scan_iter(match=pattern, count=1000):
+                batch.append(key)
+                if len(batch) >= batch_size:
+                    deleted_count += self.redis.delete(*batch)
+                    batch = []
+
+            if batch:
+                deleted_count += self.redis.delete(*batch)
+
+            logger.info(f"Cleared {deleted_count} Redis keys in namespace with pattern {pattern}")
         except Exception as e:
             logger.error(f"Redis clear error: {e}")
     
@@ -222,11 +240,13 @@ class RedisCacheBackend(CacheBackend):
         
         try:
             info = self.redis.info('memory')
+            namespaced_keys = sum(1 for _ in self.redis.scan_iter(match=f"{self.key_prefix}*", count=1000))
             return {
                 'connected': True,
                 'memory_used_mb': info.get('used_memory_human', 'N/A'),
                 'memory_peak_mb': info.get('used_memory_peak_human', 'N/A'),
-                'total_keys': self.redis.dbsize(),
+                'total_keys': namespaced_keys,
+                'key_prefix': self.key_prefix,
                 'ttl_github_api': GITHUB_API_CACHE_TTL,
                 'ttl_svg': SVG_CACHE_TTL
             }
@@ -329,7 +349,7 @@ def _init_cache_manager() -> CacheManager:
         
         if settings.redis_enabled and settings.redis_url:
             logger.info("Initializing Redis cache backend")
-            redis_backend = RedisCacheBackend(settings.redis_url)
+            redis_backend = RedisCacheBackend(settings.redis_url, settings.redis_key_prefix)
             if redis_backend.connected:
                 return CacheManager(backend=redis_backend)
             else:
