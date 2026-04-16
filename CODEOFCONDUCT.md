@@ -79,10 +79,10 @@ Community leaders are responsible for:
 
 ## 📢 Reporting Issues  
 
-If you see behavior that violates this Code of Conduct, please **report it immediately**.  
+If you see behavior that violates this Code of Conduct, please **report it immediately.**
 
 1. 📨 Contact the maintainers.
-2. 🔒 Reports will be treated with **confidentiality and respect**.  
+2. 🔒 Reports will be treated with **confidentiality and respect.** 
 3. 🚀 Community leaders will respond promptly and take fair action.  
 
 We guarantee that **no retaliation will occur** against those who report in good faith. 🙌  
