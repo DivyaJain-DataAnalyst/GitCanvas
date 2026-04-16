@@ -14,6 +14,7 @@ from generators import stats_card, lang_card, contrib_card, badge_generator, rec
 from utils import github_api
 from utils.cache import clear_cache as clear_ttl_cache
 from themes.styles import THEMES, get_all_themes, CUSTOM_THEMES
+from utils.error_card import draw_error_card
 from generators.visual_elements import (
     emoji_element,
     gif_element,
@@ -69,7 +70,29 @@ st.markdown("### Design your GitHub Stats. Copy the Code. Done.")
 # --- Sidebar Controls ---
 with st.sidebar:
     st.header("1. Identify")
-    username = st.text_input("GitHub Username", value="torvalds")
+     # Wrapping in st.form prevents API re-fetch on every keystroke.
+    # Data only loads when user clicks "Load Profile" or presses Enter.
+    with st.form(key="username_form"):
+        username = st.text_input(
+            "GitHub Username",
+            value=st.session_state.get("last_username", "torvalds"),
+            placeholder="e.g. torvalds",
+            help="Press Enter or click Load Profile to fetch data"
+        )
+        submitted = st.form_submit_button(
+            "🔍 Load Profile",
+            use_container_width=True,
+            type="primary"
+        )
+
+    # Only update the active username when form is submitted
+    if submitted:
+        st.session_state["last_username"] = username
+
+    # Use last confirmed username — avoids mid-typing API calls
+    username = st.session_state.get("last_username", "torvalds")
+    # ── End debounce fix ─────────────────────────────────────────────────
+
     
     st.header("2. Global Style")
     
@@ -260,7 +283,23 @@ if not effective_github_token:
 
 # Ensure data is not None
 if data is None:
-    data = {}
+    if effective_github_token:
+        _err_type = "invalid_user"
+        _err_type_msg = "Username not found — check spelling."
+    else:
+        _err_type = "rate_limit"
+        _err_type_msg = "GitHub API rate limit reached — add a `GITHUB_TOKEN` in the sidebar."
+
+    _err_svg = draw_error_card(_err_type, username=username if username else "user")
+
+    st.error(f"⚠️ **Could not load GitHub data.** {_err_type_msg}")
+    st.markdown(
+        f'<div style="max-width:450px; margin-top:12px;">{_err_svg}</div>',
+        unsafe_allow_html=True
+    )
+    st.info("💡 Add a `GITHUB_TOKEN` in the sidebar to fix rate limit issues.")
+    st.stop()
+
 
 # Ensure backward compatibility with old cached data
 if "top_repos" not in data:
@@ -442,8 +481,26 @@ with tab1:
         # Compact layout toggle (Issue #164)
     compact_layout = st.checkbox("📐 Compact Layout", value=False, help="Slim 300x120 card — fit multiple cards in one README row")
 
-    # Pass selected_theme string to support theme-specific logic (e.g. Glass)
-    svg_bytes = stats_card.draw_stats_card(data, selected_theme, show_ops, custom_colors, animations_enabled, compact=compact_layout)
+    # Backward-compatible call: support generators that may not yet accept `compact`
+    try:
+        svg_bytes = stats_card.draw_stats_card(
+            data,
+            selected_theme,
+            show_ops,
+            custom_colors,
+            animations_enabled,
+            compact=compact_layout,
+        )
+    except TypeError as e:
+        if "unexpected keyword argument 'compact'" not in str(e):
+            raise
+        svg_bytes = stats_card.draw_stats_card(
+            data,
+            selected_theme,
+            show_ops,
+            custom_colors,
+            animations_enabled,
+        )
     render_tab(svg_bytes, "stats", username, selected_theme, custom_colors, hide_params=show_ops, code_template=f"[![{username}'s Stats]({{url}})](https://github.com/{{username}})", output_format=output_format)
     
     # Prepare the SVG string from your generator
